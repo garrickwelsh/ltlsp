@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 tree-sitter="0.20.10"
 tree-sitter-rust="0.20.4"
+tree-sitter-md="0.1.7"
 
 [build-dependencies]
 cc="*"
