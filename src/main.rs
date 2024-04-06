@@ -1,3 +1,4 @@
+mod checker;
 mod tree_sitter;
 
 fn main() {
