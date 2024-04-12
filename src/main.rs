@@ -1,6 +1,9 @@
+use tracing::info;
+
 mod checker;
 mod tree_sitter;
 
 fn main() {
-    println!("Hello, world!");
+    tracing_subscriber::fmt::init();
+    info!("Hello, world!");
 }
