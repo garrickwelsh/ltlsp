@@ -1,0 +1,13 @@
+FROM docker.io/library/archlinux:latest
+
+MAINTAINER "Garrick Welsh <garrick.welsh@gmail.com>"
+
+RUN pacman -Syu --noconfirm
+
+RUN pacman -S --noconfirm languagetool
+
+CMD ["/usr/bin/languagetool", "--http"]
+
+EXPOSE 8081
+
+
