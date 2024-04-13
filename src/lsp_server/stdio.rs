@@ -3,11 +3,11 @@ use std::{
     thread,
 };
 
-use log::debug;
+use tracing::log::debug;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 
-use crate::Message;
+use super::msg::Message;
 
 /// Creates an LSP connection via stdio.
 pub(crate) fn stdio_transport() -> (Sender<Message>, Receiver<Message>, IoThreads) {
@@ -17,7 +17,9 @@ pub(crate) fn stdio_transport() -> (Sender<Message>, Receiver<Message>, IoThread
         .spawn(move || {
             let stdout = stdout();
             let mut stdout = stdout.lock();
-            writer_receiver.into_iter().try_for_each(|it| it.write(&mut stdout))
+            writer_receiver
+                .into_iter()
+                .try_for_each(|it| it.write(&mut stdout))
         })
         .unwrap();
     let (reader_sender, reader_receiver) = bounded::<Message>(0);
@@ -30,7 +32,9 @@ pub(crate) fn stdio_transport() -> (Sender<Message>, Receiver<Message>, IoThread
                 let is_exit = matches!(&msg, Message::Notification(n) if n.is_exit());
 
                 debug!("sending message {:#?}", msg);
-                reader_sender.send(msg).expect("receiver was dropped, failed to send a message");
+                reader_sender
+                    .send(msg)
+                    .expect("receiver was dropped, failed to send a message");
 
                 if is_exit {
                     break;

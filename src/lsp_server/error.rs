@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::{Notification, Request};
+use super::msg::{Notification, Request};
+
+//use crate::{Notification, Request};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProtocolError(String, bool);
@@ -33,7 +35,10 @@ pub enum ExtractError<T> {
     /// The extracted message was of a different method than expected.
     MethodMismatch(T),
     /// Failed to deserialize the message.
-    JsonError { method: String, error: serde_json::Error },
+    JsonError {
+        method: String,
+        error: serde_json::Error,
+    },
 }
 
 impl std::error::Error for ExtractError<Request> {}
