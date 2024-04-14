@@ -6,7 +6,7 @@ use std::{
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 
-use crate::{
+use super::{
     stdio::{make_io_threads, IoThreads},
     Message,
 };
@@ -39,7 +39,10 @@ fn make_reader(stream: TcpStream) -> (Receiver<Message>, thread::JoinHandle<io::
 fn make_write(mut stream: TcpStream) -> (Sender<Message>, thread::JoinHandle<io::Result<()>>) {
     let (writer_sender, writer_receiver) = bounded::<Message>(0);
     let writer = thread::spawn(move || {
-        writer_receiver.into_iter().try_for_each(|it| it.write(&mut stream)).unwrap();
+        writer_receiver
+            .into_iter()
+            .try_for_each(|it| it.write(&mut stream))
+            .unwrap();
         Ok(())
     });
     (writer_sender, writer)

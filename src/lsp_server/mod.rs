@@ -20,7 +20,7 @@ use std::{
 
 use crossbeam_channel::{Receiver, RecvError, RecvTimeoutError, Sender};
 
-pub use crate::{
+pub use super::lsp_server::{
     error::{ExtractError, ProtocolError},
     msg::{ErrorCode, Message, Notification, Request, RequestId, Response, ResponseError},
     req_queue::{Incoming, Outgoing, ReqQueue},
@@ -69,7 +69,16 @@ impl Connection {
     pub fn memory() -> (Connection, Connection) {
         let (s1, r1) = crossbeam_channel::unbounded();
         let (s2, r2) = crossbeam_channel::unbounded();
-        (Connection { sender: s1, receiver: r2 }, Connection { sender: s2, receiver: r1 })
+        (
+            Connection {
+                sender: s1,
+                receiver: r2,
+            },
+            Connection {
+                sender: s2,
+                receiver: r1,
+            },
+        )
     }
 
     /// Starts the initialization process by waiting for an initialize
@@ -154,7 +163,10 @@ impl Connection {
         C: Fn() -> bool,
     {
         while running() {
-            let msg = match self.receiver.recv_timeout(std::time::Duration::from_secs(1)) {
+            let msg = match self
+                .receiver
+                .recv_timeout(std::time::Duration::from_secs(1))
+            {
                 Ok(msg) => msg,
                 Err(RecvTimeoutError::Timeout) => {
                     continue;
@@ -223,7 +235,10 @@ impl Connection {
         self.sender.send(resp.into()).unwrap();
 
         while running() {
-            let msg = match self.receiver.recv_timeout(std::time::Duration::from_secs(1)) {
+            let msg = match self
+                .receiver
+                .recv_timeout(std::time::Duration::from_secs(1))
+            {
                 Ok(msg) => msg,
                 Err(RecvTimeoutError::Timeout) => {
                     continue;
@@ -351,7 +366,10 @@ impl Connection {
         }
         let resp = Response::new_ok(req.id.clone(), ());
         let _ = self.sender.send(resp.into());
-        match &self.receiver.recv_timeout(std::time::Duration::from_secs(30)) {
+        match &self
+            .receiver
+            .recv_timeout(std::time::Duration::from_secs(30))
+        {
             Ok(Message::Notification(n)) if n.is_exit() => (),
             Ok(msg) => {
                 return Err(ProtocolError::new(format!(
@@ -381,7 +399,7 @@ mod tests {
     use lsp_types::{InitializeParams, InitializedParams};
     use serde_json::to_value;
 
-    use crate::{Connection, Message, ProtocolError, RequestId};
+    use super::{Connection, Message, ProtocolError, RequestId};
 
     struct TestCase {
         test_messages: Vec<Message>,
@@ -391,7 +409,10 @@ mod tests {
     fn initialize_start_test(test_case: TestCase) {
         let (reader_sender, reader_receiver) = unbounded::<Message>();
         let (writer_sender, writer_receiver) = unbounded::<Message>();
-        let conn = Connection { sender: writer_sender, receiver: reader_receiver };
+        let conn = Connection {
+            sender: writer_sender,
+            receiver: reader_receiver,
+        };
 
         for msg in test_case.test_messages {
             assert!(reader_sender.send(msg).is_ok());
@@ -400,19 +421,21 @@ mod tests {
         let resp = conn.initialize_start();
         assert_eq!(test_case.expected_resp, resp);
 
-        assert!(writer_receiver.recv_timeout(std::time::Duration::from_secs(1)).is_err());
+        assert!(writer_receiver
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .is_err());
     }
 
     #[test]
     fn not_exit_notification() {
-        let notification = crate::Notification {
+        let notification = super::Notification {
             method: Initialized::METHOD.to_owned(),
             params: to_value(InitializedParams {}).unwrap(),
         };
 
         let params_as_value = to_value(InitializeParams::default()).unwrap();
         let req_id = RequestId::from(234);
-        let request = crate::Request {
+        let request = super::Request {
             id: req_id.clone(),
             method: Initialize::METHOD.to_owned(),
             params: params_as_value.clone(),
@@ -426,8 +449,10 @@ mod tests {
 
     #[test]
     fn exit_notification() {
-        let notification =
-            crate::Notification { method: Exit::METHOD.to_owned(), params: to_value(()).unwrap() };
+        let notification = super::Notification {
+            method: Exit::METHOD.to_owned(),
+            params: to_value(()).unwrap(),
+        };
         let notification_msg = Message::from(notification);
 
         initialize_start_test(TestCase {
