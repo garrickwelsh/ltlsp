@@ -1,8 +1,32 @@
+use serde::Deserialize;
 use tree_sitter::{Language, Parser};
+
+#[derive(Deserialize, Debug)]
+struct TreeSitterLanguage {
+    language: String,
+    source: String,
+
+    nodes: Vec<String>,
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_toml_configuration() {
+        let config: TreeSitterLanguage = toml::from_str(
+            r#"
+   language = 'markdown'
+   source = 'some source'
+
+   nodes = ["node1", "node2"]
+   
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.language, "markdown");
+    }
 
     #[test]
     fn test_parser() {

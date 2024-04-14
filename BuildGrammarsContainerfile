@@ -1,0 +1,11 @@
+FROM docker.io/library/archlinux:latest
+
+MAINTAINER "Garrick Welsh <garrick.welsh@gmail.com>"
+
+RUN pacman -Syu --noconfirm
+
+RUN pacman -S --noconfirm base-devel rust nodejs
+
+RUN cargo install tree-sitter-cli
+
+
