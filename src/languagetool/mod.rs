@@ -35,20 +35,90 @@ pub(crate) enum LanguageToolInitialisation {
     Container(ContainerType),
 }
 
-pub(crate) struct LanguageToolRunner {
-    server: String,
+pub(crate) struct LanguageToolRunnerImpl<'a> {
+    server: &'a str,
     port: u32,
+    language: &'a str,
     initialisation: LanguageToolInitialisation,
 }
 
-impl LanguageToolRunner {
+pub(crate) struct LanguageToolRequestImpl<'a> {
+    server: &'a str,
+    port: u32,
+    language: &'a str,
+    document_data: LanguageToolDocumentData<'a>,
+}
+
+pub(crate) trait LanguageToolRequest<'a> {
+    fn add_text(&mut self, text: &'a str);
+    fn add_markup(&mut self, markup: &'a str);
+    async fn execute_request(&self) -> Result<String, reqwest::Error>;
+}
+pub(crate) trait LanguageTool<'a> {
+    fn new_request(&self) -> impl LanguageToolRequest<'a>;
+}
+
+impl<'a> LanguageToolRequest<'a> for LanguageToolRequestImpl<'a> {
+    fn add_text(&mut self, text: &'a str) {
+        self.document_data
+            .annotation
+            .push(LanguageToolText::Text(text));
+    }
+
+    fn add_markup(&mut self, markup: &'a str) {
+        self.document_data
+            .annotation
+            .push(LanguageToolText::Markup(markup));
+    }
+
+    async fn execute_request(&self) -> Result<String, reqwest::Error> {
+        let request_data = serde_json::to_string_pretty(&self.document_data).unwrap();
+        let mut map = HashMap::<&str, &str>::new();
+        map.insert("language", self.language);
+        map.insert("data", &request_data);
+        let client = reqwest::Client::new();
+        let res = client
+            .post("http://localhost:8081/v2/check")
+            .form(&map)
+            .send()
+            .await?;
+        let result = res.text().await?;
+        Ok(result)
+    }
+}
+
+impl<'a> LanguageTool<'a> for LanguageToolRunnerImpl<'a> {
+    fn new_request(&self) -> impl LanguageToolRequest<'a> {
+        LanguageToolRequestImpl::new(self.server, self.port, self.language)
+    }
+}
+
+impl<'a> LanguageToolRequestImpl<'a> {
+    fn new(server: &'a str, port: u32, language: &'a str) -> LanguageToolRequestImpl<'a> {
+        LanguageToolRequestImpl {
+            server,
+            port,
+            language,
+            document_data: LanguageToolDocumentData {
+                annotation: Vec::<LanguageToolText>::new(),
+            },
+        }
+    }
+}
+
+impl<'a> LanguageToolRunnerImpl<'a> {
     /// Startup language tool if it's not already running.
-    pub(crate) async fn initialise_language_tool(server: &str, port: u32) -> LanguageToolRunner {
+    pub(crate) async fn initialise_language_tool(
+        server: &'a str,
+        port: u32,
+        language: &'a str,
+    ) -> impl LanguageTool<'a> {
         if check_if_languagetool_up().await {
             info!("languagetool already running :)");
-            return LanguageToolRunner {
-                server: server.to_owned(),
+            return LanguageToolRunnerImpl {
+                server,
                 port,
+                language,
                 initialisation: LanguageToolInitialisation::AlreadyRunning,
             };
         }
@@ -60,9 +130,10 @@ impl LanguageToolRunner {
         {
             Ok(child) => {
                 info!("languagetool Was spawned :)");
-                return LanguageToolRunner {
-                    server: server.to_owned(),
+                return LanguageToolRunnerImpl {
+                    server,
                     port,
+                    language: "en-AU",
                     initialisation: LanguageToolInitialisation::LocalExecutable(child),
                 };
             }
@@ -79,7 +150,7 @@ impl LanguageToolRunner {
     }
 }
 
-impl Drop for LanguageToolRunner {
+impl<'a> Drop for LanguageToolRunnerImpl<'a> {
     fn drop(&mut self) {
         match self.initialisation {
             LanguageToolInitialisation::LocalExecutable(_) => {
@@ -119,12 +190,14 @@ mod tests {
             .with_test_writer()
             .finish();
         tracing::subscriber::set_global_default(subscriber)?;
-        let _ = LanguageToolRunner::initialise_language_tool("test", 0).await;
+        let _ = LanguageToolRunnerImpl::initialise_language_tool("test", 0, "en-AU").await;
         Ok(())
     }
-    #[ignore]
+
     #[tokio::test]
     async fn query_language_tool() -> Result<(), Box<dyn std::error::Error>> {
+        let lt = LanguageToolRunnerImpl::initialise_language_tool("", 0, "en-AU").await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
 
         let mut form = HashMap::new();
@@ -141,11 +214,14 @@ mod tests {
             .await?;
         println!("{:?}", res);
         println!("{:?}", res.text().await?);
+        drop(lt);
         Ok(())
     }
 
     #[tokio::test]
     async fn query_language_tool_with_serde() -> Result<(), Box<dyn std::error::Error>> {
+        let lt = LanguageToolRunnerImpl::initialise_language_tool("", 0, "en-AU").await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
 
         let mut request = HashMap::new();
@@ -179,6 +255,7 @@ mod tests {
         let res = res?;
         println!("{:?}", res);
         println!("{:?}", res.text().await?);
+        drop(lt);
         Ok(())
     }
 }

@@ -2,7 +2,7 @@ use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
-mod checker;
+mod languagetool;
 mod lsp_server;
 mod tree_sitter;
 
