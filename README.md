@@ -1,2 +1,2 @@
 # ltlsp
-LSP which uses language tool to detect spelling and grammar mistakes in different file formats (using treesitter)
+LSP which uses LanguageTool to detect spelling and grammar mistakes in different file formats (using treesitter)
