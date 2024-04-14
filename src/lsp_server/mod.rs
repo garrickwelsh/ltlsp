@@ -19,6 +19,7 @@ use std::{
 };
 
 use crossbeam_channel::{Receiver, RecvError, RecvTimeoutError, Sender};
+use tracing::info;
 
 pub use super::lsp_server::{
     error::{ExtractError, ProtocolError},
@@ -173,6 +174,8 @@ impl Connection {
                 }
                 Err(RecvTimeoutError::Disconnected) => return Err(ProtocolError::disconnected()),
             };
+
+            info!("initialise: {:?}", msg);
 
             match msg {
                 Message::Request(req) if req.is_initialize() => return Ok((req.id, req.params)),
