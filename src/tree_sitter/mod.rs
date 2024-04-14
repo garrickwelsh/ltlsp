@@ -1,3 +1,5 @@
+use anyhow::Context;
+use anyhow::Result;
 use serde::Deserialize;
 use tree_sitter::{Language, Parser};
 
@@ -7,6 +9,36 @@ struct TreeSitterLanguage {
     source: String,
 
     nodes: Vec<String>,
+}
+
+#[cfg(unix)]
+const DYLIB_EXTENSION: &str = "so";
+
+#[cfg(windows)]
+const DYLIB_EXTENSION: &str = "dll";
+
+#[cfg(target_arch = "wasm32")]
+const DYLIB_EXTENSION: &str = "wasm";
+
+pub fn get_language(name: &str) -> Result<Language> {
+    use std::path::PathBuf;
+
+    use libloading::{Library, Symbol};
+    let mut rel_library_path = PathBuf::new().join("grammars").join(name);
+    rel_library_path.set_extension(DYLIB_EXTENSION);
+    let library_path = PathBuf::from("/home/gaz/devel/ltlsp").join(rel_library_path);
+
+    let library = unsafe { Library::new(&library_path) }
+        .with_context(|| format!("Error opening dynamic library {:?}", library_path))?;
+    let language_fn_name = format!("tree_sitter_{}", name.replace('-', "_"));
+    let language = unsafe {
+        let language_fn: Symbol<unsafe extern "C" fn() -> Language> = library
+            .get(language_fn_name.as_bytes())
+            .with_context(|| format!("Failed to load symbol {}", language_fn_name))?;
+        language_fn()
+    };
+    std::mem::forget(library);
+    Ok(language)
 }
 
 #[cfg(test)]
