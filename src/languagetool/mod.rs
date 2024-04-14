@@ -76,12 +76,9 @@ impl<'a> LanguageToolRequest<'a> for LanguageToolRequestImpl<'a> {
         let mut map = HashMap::<&str, &str>::new();
         map.insert("language", self.language);
         map.insert("data", &request_data);
+        let url = format!("http://{}:{}/v2/check", self.server, self.port);
         let client = reqwest::Client::new();
-        let res = client
-            .post("http://localhost:8081/v2/check")
-            .form(&map)
-            .send()
-            .await?;
+        let res = client.post(url).form(&map).send().await?;
         let result = res.text().await?;
         Ok(result)
     }
@@ -180,8 +177,7 @@ mod tests {
     use super::*;
     use tokio;
 
-    #[tokio::test]
-    async fn start_language_tool() -> Result<(), Box<dyn std::error::Error>> {
+    fn setup_tracing() -> Result<(), Box<dyn std::error::Error>> {
         let subscriber = tracing_subscriber::fmt()
             .compact()
             .with_file(true)
@@ -190,12 +186,19 @@ mod tests {
             .with_test_writer()
             .finish();
         tracing::subscriber::set_global_default(subscriber)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn start_language_tool() -> Result<(), Box<dyn std::error::Error>> {
+        setup_tracing()?;
         let _ = LanguageToolRunnerImpl::initialise_language_tool("test", 0, "en-AU").await;
         Ok(())
     }
 
     #[tokio::test]
     async fn query_language_tool() -> Result<(), Box<dyn std::error::Error>> {
+        setup_tracing()?;
         let lt = LanguageToolRunnerImpl::initialise_language_tool("", 0, "en-AU").await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
@@ -220,6 +223,7 @@ mod tests {
 
     #[tokio::test]
     async fn query_language_tool_with_serde() -> Result<(), Box<dyn std::error::Error>> {
+        setup_tracing()?;
         let lt = LanguageToolRunnerImpl::initialise_language_tool("", 0, "en-AU").await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
@@ -255,6 +259,24 @@ mod tests {
         let res = res?;
         println!("{:?}", res);
         println!("{:?}", res.text().await?);
+        drop(lt);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn query_language_tool_with_wrapping_implementation(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        setup_tracing()?;
+        let lt = LanguageToolRunnerImpl::initialise_language_tool("localhost", 8081, "en-AU").await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        let mut request = lt.new_request();
+        request.add_markup("<h1>");
+        request.add_text("Here is som text that I'd like spell checked.");
+        request.add_text("Is this something you're able to help me with?");
+        request.add_markup("</h1>");
+        let result = request.execute_request().await?;
+        info!(result);
+        drop(request);
         drop(lt);
         Ok(())
     }
