@@ -81,6 +81,36 @@ fn get_comments_from_node(comments: &mut Vec<String>, node: Node, file_bytes: &[
         });
 }
 
+pub(crate) trait LanguageSitterParser {
+    fn parse_str<'a>(s: &'a str) -> Vec<LanguageSitterResult>;
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageSitterConfiguration<'a> {
+    language: &'a str,
+    library_location: &'a str,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageSitterConfigurationNode<'a> {
+    name: &'a str,
+    expresson: &'a str,
+}
+
+#[derive(Debug)]
+pub(crate) struct LanguageSitterResult {}
+
+#[derive(Debug)]
+pub(crate) struct LanguageSitterImpl {
+    language: Language,
+}
+
+impl LanguageSitterParser for LanguageSitterImpl {
+    fn parse_str<'a>(s: &'a str) -> Vec<LanguageSitterResult> {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

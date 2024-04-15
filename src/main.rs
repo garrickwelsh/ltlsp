@@ -15,6 +15,9 @@ mod languagetool;
 mod lsp_server;
 mod tree_sitter;
 
+#[cfg(test)]
+mod test_utils;
+
 fn main_loop(
     connection: Connection,
     params: serde_json::Value,

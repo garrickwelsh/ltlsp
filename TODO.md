@@ -38,6 +38,8 @@
 
 ## LanguageTool
 - [x] Add Requests that will LanguageTool to check spelling
+- [x] Run LanguageTool locally and then shutdown on Dispose of Runner
+- [ ] Refactor - Separate LanguageTool remote server and local server support
 - [ ] Add support for LanguageTool professional version
 - [ ] Add Podman container support that will let the LanguageTool be started and stopped and easily
 - [ ] Add Docker container support that will let the LanguageTool be started and stopped and easily
