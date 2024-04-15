@@ -1,22 +1,8 @@
-name: Build and Push Image
+name: Build and Push LanguageTool Image
 on:
   schedule:
     - cron: '40 16 1 * *'  # 16:40 UTC everyday
   merge_group:
-  pull_request:
-    branches:
-      - main
-      - devel
-      - testing
-    paths-ignore:
-      - '**.md'
-  push:
-    branches:
-      - main
-      - devel
-      - testing
-    paths-ignore:
-      - '**.md'
   workflow_dispatch:
 env:
     IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
