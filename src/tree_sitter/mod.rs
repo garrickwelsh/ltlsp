@@ -1,3 +1,5 @@
+mod configuration;
+
 use anyhow::Context;
 use anyhow::Result;
 use serde::Deserialize;
@@ -79,19 +81,7 @@ fn get_comments_from_node(comments: &mut Vec<String>, node: Node, file_bytes: &[
 }
 
 pub(crate) trait LanguageSitterParser {
-    fn parse_str<'a>(s: &'a str) -> Vec<LanguageSitterResult>;
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct LanguageSitterConfiguration<'a> {
-    language: &'a str,
-    library_location: &'a str,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct LanguageSitterConfigurationNode<'a> {
-    name: &'a str,
-    expresson: &'a str,
+    fn parse_str<'a>(&self, s: &'a str) -> Vec<LanguageSitterResult>;
 }
 
 #[derive(Debug)]
@@ -103,8 +93,11 @@ pub(crate) struct LanguageSitterImpl {
 }
 
 impl LanguageSitterParser for LanguageSitterImpl {
-    fn parse_str<'a>(s: &'a str) -> Vec<LanguageSitterResult> {
-        todo!()
+    fn parse_str<'a>(&self, s: &'a str) -> Vec<LanguageSitterResult> {
+        let mut parser = Parser::new();
+        parser.set_language(self.language).unwrap();
+        let tree = parser.parse(s, None).unwrap();
+        todo!();
     }
 }
 

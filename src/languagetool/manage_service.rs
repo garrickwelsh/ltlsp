@@ -90,11 +90,6 @@ async fn check_if_languagetool_up<'a>(server: &'a str, port: u16, language: &'a 
     res.is_ok()
 }
 
-/// Make a request to language tool. If a good response is not received send an error.
-async fn check_if_languagetool_up_with_defaults() -> bool {
-    check_if_languagetool_up("localhost", 8081, "en-AU").await
-}
-
 impl<'a> LanguageToolRunnerRemote<'a> {
     /// Startup language tool if it's not already running.
     pub(crate) async fn initialise_language_tool(
@@ -102,7 +97,7 @@ impl<'a> LanguageToolRunnerRemote<'a> {
         port: u16,
         language: &'a str,
     ) -> impl LanguageToolRunner<'a> {
-        if check_if_languagetool_up_with_defaults().await {
+        if check_if_languagetool_up(server, port, language).await {
             info!("languagetool already running :)");
             return LanguageToolRunnerRemote {
                 server,
@@ -120,7 +115,7 @@ impl<'a> LanguageToolRunnerLocal<'a> {
         port: u16,
         language: &'a str,
     ) -> impl LanguageToolRunner<'a> {
-        if check_if_languagetool_up_with_defaults().await {
+        if check_if_languagetool_up("localhost", port, language).await {
             info!("languagetool already running :)");
             return LanguageToolRunnerLocal {
                 port,
@@ -129,7 +124,7 @@ impl<'a> LanguageToolRunnerLocal<'a> {
             };
         }
         match Command::new("languagetool")
-            .args(&["--http"])
+            .args(&["--http", "--port", &format!("{}", port)])
             .kill_on_drop(true)
             .spawn()
         {
