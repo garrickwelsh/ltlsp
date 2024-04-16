@@ -9,11 +9,11 @@ use tracing::{error, info};
 
 use crate::tree_sitter::LanguageSitterResult;
 
-use self::manage_service::LanguageToolRunnerImpl;
+use self::manage_service::LanguageToolRunnerRemote;
 
 pub(crate) struct LanguageToolRequest<'a> {
     server: &'a str,
-    port: u32,
+    port: u16,
     language: &'a str,
     document_data: LanguageToolDocumentData<'a>,
 }
@@ -22,13 +22,6 @@ pub(crate) trait LanguageToolRequestBuilder<'a> {
     fn add_text(&mut self, text: &'a str);
     fn add_markup(&mut self, markup: &'a str);
     async fn execute_request(&self) -> Result<String, reqwest::Error>;
-}
-pub(crate) trait LanguageToolManager<'a> {
-    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a>;
-    fn new_request_with_data(
-        &self,
-        document_data: LanguageToolDocumentData<'a>,
-    ) -> impl LanguageToolRequestBuilder<'a>;
 }
 
 #[derive(Serialize, Debug)]
@@ -71,27 +64,11 @@ impl<'a> LanguageToolRequestBuilder<'a> for LanguageToolRequest<'a> {
 }
 
 pub(crate) struct LanguageTool<'a> {
-    runner: LanguageToolRunnerImpl<'a>,
-}
-
-impl<'a> LanguageToolManager<'a> for LanguageTool<'a> {
-    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
-        LanguageToolRequest::new(self.runner.server, self.runner.port, self.runner.language)
-    }
-
-    fn new_request_with_data(
-        &self,
-        document_data: LanguageToolDocumentData<'a>,
-    ) -> impl LanguageToolRequestBuilder<'a> {
-        let mut request =
-            LanguageToolRequest::new(self.runner.server, self.runner.port, self.runner.language);
-        request.document_data = document_data;
-        request
-    }
+    runner: LanguageToolRunnerRemote<'a>,
 }
 
 impl<'a> LanguageToolRequest<'a> {
-    fn new(server: &'a str, port: u32, language: &'a str) -> LanguageToolRequest<'a> {
+    fn new(server: &'a str, port: u16, language: &'a str) -> LanguageToolRequest<'a> {
         LanguageToolRequest {
             server,
             port,
@@ -115,14 +92,15 @@ mod tests {
     use std::collections::HashMap;
 
     use super::super::test_utils::setup_tracing;
+    use super::LanguageToolRequestBuilder;
     use super::*;
-    use tests::manage_service::LanguageToolRunnerImpl;
+    use tests::manage_service::LanguageToolRunnerLocal;
     use tokio;
 
     #[tokio::test]
     async fn query_language_tool_with_serde() -> Result<(), Box<dyn std::error::Error>> {
         setup_tracing()?;
-        let lt = LanguageToolRunnerImpl::initialise_language_tool("localhost", 8081, "en-AU").await;
+        let lt = LanguageToolRunnerLocal::initialise_language_tool(8081, "en-AU").await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
 
@@ -164,8 +142,9 @@ mod tests {
     #[tokio::test]
     async fn query_language_tool_with_wrapping_implementation(
     ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::languagetool::manage_service::LanguageToolRunner;
         setup_tracing()?;
-        let lt = LanguageToolRunnerImpl::initialise_language_tool("localhost", 8081, "en-AU").await;
+        let lt = LanguageToolRunnerLocal::initialise_language_tool(8081, "en-AU").await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let mut request = lt.new_request();
         request.add_markup("<h1>");

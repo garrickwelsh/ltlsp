@@ -3,7 +3,7 @@ use std::{collections::HashMap, io::ErrorKind};
 use tokio::process::{Child, Command};
 use tracing::{error, info};
 
-use super::LanguageToolManager;
+use super::{LanguageToolRequest, LanguageToolRequestBuilder};
 
 pub(crate) enum ContainerType {
     PodMan,
@@ -17,35 +17,63 @@ pub(crate) enum LanguageToolInitialisation {
     Container(ContainerType),
 }
 
-pub(crate) struct LanguageToolRunnerImpl<'a> {
+pub(crate) struct LanguageToolRunnerRemote<'a> {
     pub(crate) server: &'a str,
-    pub(crate) port: u32,
+    pub(crate) port: u16,
+    pub(crate) language: &'a str,
+}
+
+pub(crate) struct LanguageToolRunnerLocal<'a> {
+    pub(crate) port: u16,
     pub(crate) language: &'a str,
     pub(crate) initialisation: LanguageToolInitialisation,
 }
 
 pub(crate) trait LanguageToolRunner<'a> {
     fn server(&self) -> &'a str;
-    fn port(&self) -> u32;
+    fn port(&self) -> u16;
     fn language(&self) -> &'a str;
+    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a>;
 }
 
-impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerImpl<'a> {
+impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerRemote<'a> {
     fn server(&self) -> &'a str {
         self.server
     }
 
-    fn port(&self) -> u32 {
+    fn port(&self) -> u16 {
         self.port
     }
 
     fn language(&self) -> &'a str {
         self.language
     }
+
+    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
+        LanguageToolRequest::new(self.server, self.port, &self.language)
+    }
+}
+
+impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerLocal<'a> {
+    fn server(&self) -> &'a str {
+        "localhost"
+    }
+
+    fn port(&self) -> u16 {
+        self.port
+    }
+
+    fn language(&self) -> &'a str {
+        self.language
+    }
+
+    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
+        LanguageToolRequest::new(self.server(), self.port, &self.language)
+    }
 }
 
 /// Make a request to language tool. If a good response is not received send an error.
-async fn check_if_languagetool_up<'a>(server: &'a str, port: u32, language: &'a str) -> bool {
+async fn check_if_languagetool_up<'a>(server: &'a str, port: u16, language: &'a str) -> bool {
     let client = reqwest::Client::new();
     let mut form = HashMap::new();
     form.insert("language", language);
@@ -54,12 +82,11 @@ async fn check_if_languagetool_up<'a>(server: &'a str, port: u32, language: &'a 
         "This is some somple test text. I'm hoping that language till tool will understand it.",
     );
 
+    let mut url = reqwest::Url::parse("http://server:80/v2/check").unwrap();
+    url.set_host(Some(server)).unwrap();
+    url.set_port(Some(port)).unwrap();
     // TODO: Fix security vulnerability with unchecked server string i.e. unescaped
-    let res = client
-        .post(format!("http://{}:{}/v2/check", server, port))
-        .form(&form)
-        .send()
-        .await;
+    let res = client.post(url).form(&form).send().await;
     res.is_ok()
 }
 
@@ -68,23 +95,39 @@ async fn check_if_languagetool_up_with_defaults() -> bool {
     check_if_languagetool_up("localhost", 8081, "en-AU").await
 }
 
-impl<'a> LanguageToolRunnerImpl<'a> {
+impl<'a> LanguageToolRunnerRemote<'a> {
     /// Startup language tool if it's not already running.
     pub(crate) async fn initialise_language_tool(
         server: &'a str,
-        port: u32,
+        port: u16,
         language: &'a str,
     ) -> impl LanguageToolRunner<'a> {
         if check_if_languagetool_up_with_defaults().await {
             info!("languagetool already running :)");
-            return LanguageToolRunnerImpl {
+            return LanguageToolRunnerRemote {
                 server,
+                port,
+                language,
+            };
+        }
+        todo!();
+    }
+}
+
+impl<'a> LanguageToolRunnerLocal<'a> {
+    /// Startup language tool if it's not already running.
+    pub(crate) async fn initialise_language_tool(
+        port: u16,
+        language: &'a str,
+    ) -> impl LanguageToolRunner<'a> {
+        if check_if_languagetool_up_with_defaults().await {
+            info!("languagetool already running :)");
+            return LanguageToolRunnerLocal {
                 port,
                 language,
                 initialisation: LanguageToolInitialisation::AlreadyRunning,
             };
         }
-
         match Command::new("languagetool")
             .args(&["--http"])
             .kill_on_drop(true)
@@ -92,10 +135,9 @@ impl<'a> LanguageToolRunnerImpl<'a> {
         {
             Ok(child) => {
                 info!("languagetool Was spawned :)");
-                return LanguageToolRunnerImpl {
-                    server,
+                return LanguageToolRunnerLocal {
                     port,
-                    language: "en-AU",
+                    language,
                     initialisation: LanguageToolInitialisation::LocalExecutable(child),
                 };
             }
@@ -112,7 +154,7 @@ impl<'a> LanguageToolRunnerImpl<'a> {
     }
 }
 
-impl<'a> Drop for LanguageToolRunnerImpl<'a> {
+impl<'a> Drop for LanguageToolRunnerLocal<'a> {
     fn drop(&mut self) {
         match self.initialisation {
             LanguageToolInitialisation::LocalExecutable(_) => {
@@ -138,19 +180,22 @@ impl<'a> Drop for LanguageToolRunnerImpl<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{languagetool::manage_service::LanguageToolRunnerImpl, test_utils::setup_tracing};
+    use crate::{
+        languagetool::manage_service::{LanguageToolRunnerLocal, LanguageToolRunnerRemote},
+        test_utils::setup_tracing,
+    };
 
     #[tokio::test]
     async fn start_language_tool() -> Result<(), Box<dyn std::error::Error>> {
         setup_tracing()?;
-        let _ = LanguageToolRunnerImpl::initialise_language_tool("test", 0, "en-AU").await;
+        let _ = LanguageToolRunnerLocal::initialise_language_tool(8081, "en-AU").await;
         Ok(())
     }
 
     #[tokio::test]
     async fn query_language_tool() -> Result<(), Box<dyn std::error::Error>> {
         setup_tracing()?;
-        let lt = LanguageToolRunnerImpl::initialise_language_tool("", 0, "en-AU").await;
+        let lt = LanguageToolRunnerLocal::initialise_language_tool(8081, "en-AU").await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
 
