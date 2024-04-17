@@ -85,7 +85,11 @@ pub(crate) trait LanguageSitterParser {
 }
 
 #[derive(Debug)]
-pub(crate) struct LanguageSitterResult {}
+pub(crate) struct LanguageSitterResult {
+    text: String,
+    start_pos: usize,
+    end_pos: usize,
+}
 
 #[derive(Debug)]
 pub(crate) struct LanguageSitterImpl {
@@ -97,6 +101,30 @@ impl LanguageSitterParser for LanguageSitterImpl {
         let mut parser = Parser::new();
         parser.set_language(self.language).unwrap();
         let tree = parser.parse(s, None).unwrap();
+
+        let mut comments = Vec::<String>::new();
+        let root_node = tree.root_node();
+        let mut sbytes = s.as_bytes();
+        let mut query_cursor = tree_sitter::QueryCursor::new();
+        let query =
+            tree_sitter::Query::new(tree_sitter_rust::language(), "(line_comment) @line").unwrap();
+
+        let mut result = Vec::<LanguageSitterResult>::new();
+        query_cursor
+            .captures(&query, root_node, sbytes)
+            .for_each(|c| {
+                println!("Capture test: {:?}", c);
+                c.0.captures.into_iter().for_each(|cap| {
+                    sbytes.text(cap.node).for_each(|deep| {
+                        result.push(LanguageSitterResult {
+                            text: std::str::from_utf8(deep).unwrap().to_string(),
+                            start_pos: cap.node.start_byte(),
+                            end_pos: cap.node.end_byte(),
+                        });
+                        // comments.push(std::str::from_utf8(deep).unwrap().to_string());
+                    })
+                });
+            });
         todo!();
     }
 }

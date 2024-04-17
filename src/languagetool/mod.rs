@@ -1,11 +1,10 @@
 mod manage_service;
 
-use std::{collections::HashMap, future::Future, io::ErrorKind};
+use std::collections::HashMap;
 
 use reqwest;
-use serde::{Deserialize, Serialize};
-use tokio::process::{Child, Command};
-use tracing::{error, info};
+use serde::Serialize;
+use tracing::info;
 
 use crate::tree_sitter::LanguageSitterResult;
 

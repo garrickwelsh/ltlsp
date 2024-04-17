@@ -4,8 +4,8 @@ MAINTAINER "Garrick Welsh <garrick.welsh@gmail.com>"
 
 RUN pacman -Syu --noconfirm
 
-RUN pacman -S --noconfirm base-devel rust nodejs
+RUN pacman -S --noconfirm base-devel rustup nodejs helix neovim
 
-RUN cargo install tree-sitter-cli
+RUN rustup toolchain install stable && rustup component add rust-analyzer
 
-
+VOLUME ["/workspace"]

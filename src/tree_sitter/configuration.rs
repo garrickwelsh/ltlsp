@@ -6,19 +6,19 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfiguration<'a> {
-    language: &'a str,
-    library_location: &'a str,
+    _language: &'a str,
+    _library_location: &'a str,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfigurationNode<'a> {
-    name: &'a str,
-    expresson: &'a str,
+    _name: &'a str,
+    _expresson: &'a str,
 }
 
 pub(crate) fn get_configuration<'a>(_language: &str) -> LanguageSitterConfiguration<'a> {
     LanguageSitterConfiguration {
-        language: "rust",
-        library_location: "TODO",
+        _language: "rust",
+        _library_location: "TODO",
     }
 }

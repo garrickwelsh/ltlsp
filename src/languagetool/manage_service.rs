@@ -5,16 +5,16 @@ use tracing::{error, info};
 
 use super::{LanguageToolRequest, LanguageToolRequestBuilder};
 
-pub(crate) enum ContainerType {
-    PodMan,
-    Docker,
-    Lxc,
+pub(crate) enum _ContainerType {
+    _PodMan,
+    _Docker,
+    _Incus,
 }
 
 pub(crate) enum LanguageToolInitialisation {
     AlreadyRunning,
     LocalExecutable(Child),
-    Container(ContainerType),
+    Container(_ContainerType),
 }
 
 pub(crate) struct LanguageToolRunnerRemote<'a> {
@@ -68,7 +68,7 @@ impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerLocal<'a> {
     }
 
     fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
-        LanguageToolRequest::new(self.server(), self.port, &self.language)
+        LanguageToolRequest::new(self.server(), self.port(), self.language())
     }
 }
 
@@ -85,7 +85,6 @@ async fn check_if_languagetool_up<'a>(server: &'a str, port: u16, language: &'a 
     let mut url = reqwest::Url::parse("http://server:80/v2/check").unwrap();
     url.set_host(Some(server)).unwrap();
     url.set_port(Some(port)).unwrap();
-    // TODO: Fix security vulnerability with unchecked server string i.e. unescaped
     let res = client.post(url).form(&form).send().await;
     res.is_ok()
 }
@@ -155,14 +154,14 @@ impl<'a> Drop for LanguageToolRunnerLocal<'a> {
             LanguageToolInitialisation::LocalExecutable(_) => {
                 info!("Languagetool should be killed on drop")
             }
-            LanguageToolInitialisation::Container(ContainerType::PodMan) => {
+            LanguageToolInitialisation::Container(_ContainerType::_PodMan) => {
                 todo!("Stop podman");
             }
-            LanguageToolInitialisation::Container(ContainerType::Docker) => {
+            LanguageToolInitialisation::Container(_ContainerType::_Docker) => {
                 todo!("Stop docker");
             }
-            LanguageToolInitialisation::Container(ContainerType::Lxc) => {
-                todo!("Stop Lxc");
+            LanguageToolInitialisation::Container(_ContainerType::_Incus) => {
+                todo!("Stop Incus");
             }
             LanguageToolInitialisation::AlreadyRunning => {
                 info!("Languagetool was already running no need to shut it down");
@@ -175,10 +174,7 @@ impl<'a> Drop for LanguageToolRunnerLocal<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        languagetool::manage_service::{LanguageToolRunnerLocal, LanguageToolRunnerRemote},
-        test_utils::setup_tracing,
-    };
+    use crate::{languagetool::manage_service::LanguageToolRunnerLocal, test_utils::setup_tracing};
 
     #[tokio::test]
     async fn start_language_tool() -> Result<(), Box<dyn std::error::Error>> {
