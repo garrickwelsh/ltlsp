@@ -11,6 +11,7 @@ use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
+mod config;
 mod languagetool;
 mod lsp_server;
 mod tree_sitter;

@@ -1,5 +1,3 @@
-mod configuration;
-
 use anyhow::Context;
 use anyhow::Result;
 use serde::Deserialize;
@@ -8,13 +6,7 @@ use tree_sitter::TextProvider;
 use tree_sitter::Tree;
 use tree_sitter::{Language, Parser};
 
-#[derive(Deserialize, Debug)]
-struct TreeSitterLanguage {
-    language: String,
-    source: String,
-
-    nodes: Vec<String>,
-}
+use crate::config::*;
 
 #[cfg(unix)]
 const DYLIB_EXTENSION: &str = "so";
@@ -163,22 +155,6 @@ fn main() {
             println!("{:?}", i);
         }
     }
-
-    #[test]
-    fn test_toml_configuration() {
-        let config: TreeSitterLanguage = toml::from_str(
-            r#"
-   language = 'markdown'
-   source = 'some source'
-
-   nodes = ["node1", "node2"]
-   
-"#,
-        )
-        .unwrap();
-        assert_eq!(config.language, "markdown");
-    }
-
     #[test]
     fn test_parser() {
         let mut parser = Parser::new();
