@@ -4,7 +4,7 @@ MAINTAINER "Garrick Welsh <garrick.welsh@gmail.com>"
 
 RUN pacman -Syu --noconfirm
 
-RUN pacman -S --noconfirm base-devel rustup nodejs helix neovim rust-analyzer starship
+RUN pacman -S --noconfirm base-devel rustup nodejs helix neovim rust-analyzer starship kitty-terminfo
 
 # RUN groupadd -gid 1000 gaz
 
