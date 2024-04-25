@@ -1,25 +1,26 @@
 use etcetera::{app_strategy, AppStrategy};
 use serde::Deserialize;
+use tracing::info;
 
 // TODO: Build configurations to extract specific node types from treesitter for
 // consumption by language tool.
 // More advanced features will be to remove excess comment tags.
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct LanguageSitterConfig<'a> {
-    _language: &'a str,
-    _library_location: &'a str,
+pub(crate) struct LanguageSitterConfig {
+    _language: String,
+    _library_location: String,
 
-    _nodes: Vec<LanguageSitterConfigNode<'a>>,
+    _nodes: Vec<LanguageSitterConfigNode>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct LanguageSitterConfigNode<'a> {
-    _name: &'a str,
-    _expresson: &'a str,
+pub(crate) struct LanguageSitterConfigNode {
+    _name: String,
+    _expresson: String,
 }
 
-pub(crate) fn get_config<'a>(_language: &str) -> LanguageSitterConfig<'a> {
+pub(crate) fn get_config(_language: &str) -> LanguageSitterConfig {
     let _strategy = app_strategy::choose_app_strategy(etcetera::AppStrategyArgs {
         top_level_domain: "develop".to_string(),
         author: "Garrick".to_string(),
@@ -27,9 +28,10 @@ pub(crate) fn get_config<'a>(_language: &str) -> LanguageSitterConfig<'a> {
     })
     .unwrap();
     let _config_dir = _strategy.config_dir();
+    info!("config dir is: {}", _config_dir.display());
     LanguageSitterConfig {
-        _language: "rust",
-        _library_location: "TODO",
+        _language: "rust".to_string(),
+        _library_location: "TODO".to_string(),
         _nodes: Vec::<LanguageSitterConfigNode>::new(),
     }
 }
@@ -50,6 +52,6 @@ mod test {
 "#,
         )
         .unwrap();
-        assert_eq!(config.language, "markdown");
+        assert_eq!(config._language, "markdown");
     }
 }
