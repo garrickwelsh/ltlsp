@@ -4,7 +4,7 @@ MAINTAINER "Garrick Welsh <garrick.welsh@gmail.com>"
 
 RUN pacman -Syu --noconfirm
 
-RUN pacman -S --noconfirm base-devel rustup nodejs helix neovim rust-analyzer starship kitty-terminfo
+RUN pacman -S --noconfirm base-devel rustup nodejs helix neovim rust-analyzer starship kitty-terminfo tree-sitter-cli
 
 # RUN groupadd -gid 1000 gaz
 
@@ -12,6 +12,9 @@ RUN useradd gaz -G wheel -m -u 1000
 
 USER gaz
 
-RUN rustup toolchain install stable
+RUN mkdir -p ~/.config && \
+		starship preset gruvbox-rainbow -o ~/.config/starship.toml && \
+		rustup toolchain install stable && \
+		echo 'eval "$(starship init bash)"' >> ~/.bashrc
 
 VOLUME ["/workspace"]
