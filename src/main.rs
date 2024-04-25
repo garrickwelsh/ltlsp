@@ -79,6 +79,8 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     tracing::subscriber::set_global_default(subscriber)?;
     info!("Hello, world!");
+    let _config = config::get_config("rust");
+    info!("Config is: {:?}", _config);
     // Note that  we must have our logging only write out to stderr.
     info!("starting generic LSP server");
 
