@@ -30,7 +30,7 @@ pub(crate) fn prioritise_config_dirs() -> Result<Vec<PathBuf>> {
     })?;
     retval.push(_strategy.config_dir());
 
-    // Get cargo directory
+    // Get cargo directory from when doing a cargo run
     if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
         let manifest_dir = PathBuf::from(dir);
         let path = manifest_dir;
@@ -50,6 +50,21 @@ pub(crate) fn prioritise_config_dirs() -> Result<Vec<PathBuf>> {
         let path = std::fs::canonicalize(dir)?;
         let path = path.parent().unwrap().to_path_buf();
         retval.push(path);
+    }
+
+    // Get build directory from when running explicitly from the build dir
+    if let Ok(dir) = std::env::current_exe() {
+        let manifest_dir = PathBuf::from(dir);
+        let path = manifest_dir
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        // Once we release should it below in another dir?
+        // let path = manifest_dir.parent().unwrap();
+        retval.push(path.to_path_buf());
     }
 
     Ok(retval)

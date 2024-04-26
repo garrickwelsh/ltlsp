@@ -1,9 +1,17 @@
 // #![allow(clippy::print_stderr)]
 
+use lsp_types::notification::DidOpenTextDocument;
+use lsp_types::notification::PublishDiagnostics;
+use lsp_types::Diagnostic;
+use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
     request::GotoDefinition, GotoDefinitionResponse, InitializeParams, ServerCapabilities,
 };
-use lsp_types::{OneOf, TextDocumentSyncCapability, TextDocumentSyncKind};
+use lsp_types::{
+    CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CodeDescription,
+    CompletionOptions, OneOf, Position, Range, TextDocumentSyncCapability, TextDocumentSyncKind,
+    WorkDoneProgressOptions,
+};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
@@ -11,6 +19,8 @@ use std::io::Stdout;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
+
+use crate::lsp_server::Notification;
 
 mod config;
 mod languagetool;
@@ -34,22 +44,23 @@ fn main_loop(
                     return Ok(());
                 }
                 info!("got request: {req:?}");
-                match cast::<GotoDefinition>(req) {
-                    Ok((id, params)) => {
-                        info!("got gotoDefinition request #{id}: {params:?}");
-                        let result = Some(GotoDefinitionResponse::Array(Vec::new()));
-                        let result = serde_json::to_value(&result).unwrap();
-                        let resp = Response {
-                            id,
-                            result: Some(result),
-                            error: None,
-                        };
-                        connection.sender.send(Message::Response(resp))?;
-                        continue;
-                    }
-                    Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
-                    Err(ExtractError::MethodMismatch(req)) => req,
-                };
+                // Removed goto defintion from capabilities
+                // match cast::<GotoDefinition>(req) {
+                //     Ok((id, params)) => {
+                //         info!("got gotoDefinition request #{id}: {params:?}");
+                //         let result = Some(GotoDefinitionResponse::Array(Vec::new()));
+                //         let result = serde_json::to_value(&result).unwrap();
+                //         let resp = Response {
+                //             id,
+                //             result: Some(result),
+                //             error: None,
+                //         };
+                //         connection.sender.send(Message::Response(resp))?;
+                //         continue;
+                //     }
+                //     Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
+                //     Err(ExtractError::MethodMismatch(req)) => req,
+                // };
                 // ...
             }
             Message::Response(resp) => {
@@ -57,6 +68,43 @@ fn main_loop(
             }
             Message::Notification(not) => {
                 info!("got notification: {not:?}");
+                if not.method == "textDocument/didOpen" {
+                    // TODO: Let's send back an error.
+                    let diagnostic = Diagnostic {
+                        range: Range::new(
+                            Position {
+                                line: 1,
+                                character: 1,
+                            },
+                            Position {
+                                line: 1,
+                                character: 5,
+                            },
+                        ),
+                        // downgrade to hint if we're pointing at the macro
+                        severity: Some(lsp_types::DiagnosticSeverity::HINT),
+                        code: Some(lsp_types::NumberOrString::String(
+                            "An error for as an example".to_string(),
+                        )),
+                        code_description: None,
+                        source: Some("Language tool".to_string()),
+                        message: "Fix yee spelling".to_string(),
+                        related_information: None,
+                        tags: None,
+                        data: None, // Some(serde_json::json!({ "rendered": rd.rendered })),
+                    };
+                    let diagnostic_params = PublishDiagnosticsParams::new(
+                        lsp_types::Url::parse("file:///home/gaz/devel/ltlsp/test.ltlsp")?,
+                        [diagnostic].to_vec(),
+                        None,
+                    );
+                    let not = lsp_server::Notification::new(
+                        <lsp_types::notification::PublishDiagnostics as lsp_types::notification::Notification>::METHOD
+                            .to_owned(),
+                        diagnostic_params,
+                    );
+                    connection.sender.send(Message::Notification(not))?;
+                }
             }
         }
     }
@@ -76,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         .with_line_number(true)
         .with_target(true)
         .with_writer(log_file)
-        .with_writer(std::io::stdout)
+        // .with_writer(std::io::stdout)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
@@ -96,8 +144,24 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
     let server_capabilities = serde_json::to_value(&ServerCapabilities {
-        definition_provider: Some(OneOf::Left(true)),
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some([CodeActionKind::QUICKFIX].to_vec()),
+            work_done_progress_options: WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
+            resolve_provider: None,
+        })),
+        // TODO: Completion provider needs to filled out to work...
+        completion_provider: Some(CompletionOptions {
+            resolve_provider: None,
+            trigger_characters: None,
+            all_commit_characters: None, // Trigger on whitespace?
+            work_done_progress_options: WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
+            completion_item: None,
+        }),
         ..Default::default()
     })
     .unwrap();
