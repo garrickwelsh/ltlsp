@@ -1,1 +1,5 @@
 # Configuration to find a builid languages libraries for loading
+
+[language.rust]
+library_location = "libtree-sitter-rust.so"
+expresson = [ "(line_comment) @line" ]

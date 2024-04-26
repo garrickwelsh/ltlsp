@@ -1,9 +1,8 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use etcetera::{app_strategy, AppStrategy};
 use serde::Deserialize;
-use tracing::info;
 
 // TODO: Build configurations to extract specific node types from treesitter for
 // consumption by language tool.
@@ -11,16 +10,13 @@ use tracing::info;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfig {
-    _language: String,
-    _library_location: String,
-
-    _nodes: Vec<LanguageSitterConfigNode>,
+    language: HashMap<String, LanguageSitterConfigNode>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfigNode {
-    _name: String,
-    _expresson: String,
+    library_location: String,
+    expresson: Vec<String>,
 }
 
 pub(crate) fn prioritise_config_dirs() -> Result<Vec<PathBuf>> {
