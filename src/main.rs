@@ -2,6 +2,7 @@
 
 use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::PublishDiagnostics;
+use lsp_types::CodeAction;
 use lsp_types::Diagnostic;
 use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
@@ -48,6 +49,21 @@ fn main_loop(
                     return Ok(());
                 }
                 info!("got request: {req:?}");
+
+                // TODO When get a code need to response with a suggested fix. Code Action - Code below doesn't work.
+                // match cast::<CodeAction>(req) {
+                // let code_action = CodeAction {
+                //     title: "Sample quick fix".to_string(),
+                //     kind: Some(CodeActionKind::QUICKFIX),
+                //     diagnostics: Some([].to_vec()),
+                //     edit: None,
+                //     command: None,
+                //     is_preferred: None, // TODO: Maybe able to do things with preferred CodeActions
+                //     disabled: None,
+                //     data: None, // TODO: Should this be used to identify the code action to take action
+                // };
+                // }
+
                 // Removed goto defintion from capabilities
                 // match cast::<GotoDefinition>(req) {
                 //     Ok((id, params)) => {
@@ -106,7 +122,7 @@ fn main_loop(
                     };
                     let diagnostic_params = PublishDiagnosticsParams::new(
                         lsp_types::Url::parse("file:///home/gaz/devel/ltlsp/test.ltlsp")?,
-                        [diagnostic].to_vec(),
+                        [diagnostic.clone()].to_vec(),
                         None,
                     );
                     let not = lsp_server::Notification::new(
