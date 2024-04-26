@@ -73,7 +73,14 @@ fn main_loop(
             Message::Notification(not) => {
                 info!("got notification: {not:?}");
                 if not.method == "textDocument/didOpen" {
-                    // TODO: Let's send back an error.
+                    // Proof of Concept: Send back an error.
+                    if let serde_json::Value::Object(map) = not.params {
+                        if let serde_json::Value::Object(document_map) = map["textDocument"].clone()
+                        {
+                            info!("Document text is: {}", document_map["text"]);
+                            info!("File uri is: {}", document_map["uri"]);
+                        }
+                    }
                     let diagnostic = Diagnostic {
                         range: Range::new(
                             Position {

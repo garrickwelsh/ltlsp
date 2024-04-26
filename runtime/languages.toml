@@ -2,4 +2,5 @@
 
 [language.rust]
 library_location = "libtree-sitter-rust.so"
-expresson = [ "(line_comment) @line" ]
+file_extensions = [ "rs", "ltlsp" ]
+expresson = [ "(line_comment) @line", "(block_comment) @block" ]

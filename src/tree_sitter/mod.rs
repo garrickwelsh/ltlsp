@@ -137,7 +137,8 @@ mod tests {
 // You can always return to the original code by clicking the "Reset" button ->
 
 //! This is the main function.
-fn main() {
+/* Another comment type */
+fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
     // Statements here are executed when the compiled binary is called.
 
     // Print text to the console.

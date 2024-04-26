@@ -16,6 +16,7 @@ pub(crate) struct LanguageSitterConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfigNode {
     library_location: String,
+    file_extensions: Vec<String>,
     expresson: Vec<String>,
 }
 
