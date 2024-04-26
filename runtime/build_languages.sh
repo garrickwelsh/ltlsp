@@ -9,21 +9,30 @@ function build_tree_sitter() {
   # curl "$GRAMMAR" -o grammar.js
   # tree-sitter generate
 
-  git clone --depth 1 https://github.com/tree-sitter/tree-sitter-rust.git
+  if [ ! -d "$FOLDER" ]; then
+    git clone --depth 1 https://github.com/tree-sitter/tree-sitter-rust.git
 
-  mkdir -p "$FOLDER"
-  pushd "$FOLDER"
+    mkdir -p "$FOLDER"
+    pushd "$FOLDER"
+  else
+    pushd "$FOLDER"
+    git fetch --all --prune
+  fi
 
-  git checkout 473634230435c18033384bebaa6d6a17c2523281
+  git checkout "$REF"
   
   make
-  #cp "$LIBRARY" 
+  cp "$LIBRARY" ../../ltlsp_grammars
   popd
 }
 
 pushd "$(dirname "$0")"
 
-build_tree_sitter "tree-sitter-rust" "https://github.com/tree-sitter/tree-sitter-rust.git" "473634230435c18033384bebaa6d6a17c2523281" "libtree-sitter-rust.so"
-# build_tree_sitter "rust" "https://raw.githubusercontent.com/tree-sitter/tree-sitter-rust/master/grammar.js" "libtree-sitter-rust.so"
+mkdir -p ltlsp_grammars
+mkdir -p ltlsp_grammars_build
+pushd ltlsp_grammars_build
 
+build_tree_sitter "tree-sitter-rust" "https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2" "libtree-sitter-rust.so"
+
+popd
 popd

@@ -1,4 +1,4 @@
-#![allow(clippy::print_stderr)]
+// #![allow(clippy::print_stderr)]
 
 use lsp_types::{
     request::GotoDefinition, GotoDefinitionResponse, InitializeParams, ServerCapabilities,
@@ -7,6 +7,7 @@ use lsp_types::{OneOf, TextDocumentSyncCapability, TextDocumentSyncKind};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
+use std::io::Stdout;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
@@ -75,12 +76,17 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         .with_line_number(true)
         .with_target(true)
         .with_writer(log_file)
+        .with_writer(std::io::stdout)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
     info!("Hello, world!");
-    let _config = config::get_config("rust");
+    let _config = config::prioritise_config_dirs()?;
+    info!("Config dirs: {:?}", _config);
+    let _config = config::get_tree_sitter_config()?;
     info!("Config is: {:?}", _config);
+    let _config = config::prioritise_runtime_grammar_dirs()?;
+    info!("Runtime dirs: {:?}", _config);
     // Note that  we must have our logging only write out to stderr.
     info!("starting generic LSP server");
 
