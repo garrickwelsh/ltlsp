@@ -8,12 +8,12 @@ use serde::Deserialize;
 // consumption by language tool.
 // More advanced features will be to remove excess comment tags.
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfig {
     language: HashMap<String, LanguageSitterConfigNode>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfigNode {
     library_location: String,
     expresson: Vec<String>,
@@ -104,14 +104,13 @@ mod test {
     fn test_toml_configuration() {
         let config: LanguageSitterConfig = toml::from_str(
             r#"
-   language = 'markdown'
-   source = 'some source'
-
-   nodes = ["node1", "node2"]
-   
+[language.rust]
+library_location = "libtree-sitter-rust.so"
+expresson = [ "(line_comment) @line" ]
 "#,
         )
         .unwrap();
-        assert_eq!(config._language, "markdown");
+        let rust_config = config.language["rust"].clone();
+        assert_eq!(rust_config.library_location, "libtree-sitter-rust.so");
     }
 }

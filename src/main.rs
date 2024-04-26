@@ -15,14 +15,17 @@ use lsp_types::{
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
+use std::collections::HashMap;
 use std::io::Stdout;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
+use crate::document::Document;
 use crate::lsp_server::Notification;
 
 mod config;
+mod document;
 mod languagetool;
 mod lsp_server;
 mod tree_sitter;
@@ -35,6 +38,7 @@ fn main_loop(
     params: serde_json::Value,
 ) -> Result<(), Box<dyn Error + Sync + Send>> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
+    let _documents = HashMap::<String, Document>::new();
     info!("starting example main loop");
     for msg in &connection.receiver {
         info!("got msg: {msg:?}");
