@@ -2,7 +2,11 @@
 
 use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::PublishDiagnostics;
+use lsp_types::request::CodeActionRequest;
+use lsp_types::request::CodeActionResolveRequest;
 use lsp_types::CodeAction;
+use lsp_types::CodeActionOrCommand;
+use lsp_types::CodeActionResponse;
 use lsp_types::Diagnostic;
 use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
@@ -51,18 +55,33 @@ fn main_loop(
                 info!("got request: {req:?}");
 
                 // TODO When get a code need to response with a suggested fix. Code Action - Code below doesn't work.
-                // match cast::<CodeAction>(req) {
-                // let code_action = CodeAction {
-                //     title: "Sample quick fix".to_string(),
-                //     kind: Some(CodeActionKind::QUICKFIX),
-                //     diagnostics: Some([].to_vec()),
-                //     edit: None,
-                //     command: None,
-                //     is_preferred: None, // TODO: Maybe able to do things with preferred CodeActions
-                //     disabled: None,
-                //     data: None, // TODO: Should this be used to identify the code action to take action
-                // };
-                // }
+                match cast::<CodeActionRequest>(req) {
+                    Ok((_id, _params)) => {
+                        let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
+                        let action = CodeActionOrCommand::CodeAction(CodeAction {
+                            title: "Some title".to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: None,
+                            edit: None,
+                            command: None,
+                            is_preferred: None,
+                            disabled: None,
+                            data: None,
+                        });
+                        actions.push(action);
+                        let result = serde_json::to_value(&actions)?;
+                        let resp = Response {
+                            id: _id,
+                            result: Some(result),
+                            error: None,
+                        };
+                        connection.sender.send(Message::Response(resp.clone()))?;
+                        info!("Sent code action response {:?}", resp);
+                        continue;
+                    }
+                    Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
+                    Err(ExtractError::MethodMismatch(req)) => req,
+                };
 
                 // Removed goto defintion from capabilities
                 // match cast::<GotoDefinition>(req) {
