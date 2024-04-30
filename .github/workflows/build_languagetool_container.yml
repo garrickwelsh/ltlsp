@@ -31,6 +31,10 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     continue-on-error: false
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
 
