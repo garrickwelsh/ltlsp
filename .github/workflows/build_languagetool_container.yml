@@ -65,7 +65,7 @@ jobs:
           if [[ ${{ github.ref_name }} == "testing" ]]; then
              BUILD_TAGS=("${MAJOR_VERSION}-testing" "${MAJOR_VERSION}-testing-${TIMESTAMP}")
           elif [[ ${{ github.ref_name }} == "devel" ]]; then
-             BUILD_TAGS=("lateset" "${MAJOR_VERSION}-devel" "${MAJOR_VERSION}-devel-${TIMESTAMP}")
+             BUILD_TAGS=("latest" "${MAJOR_VERSION}-devel" "${MAJOR_VERSION}-devel-${TIMESTAMP}")
            fi
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
