@@ -5,6 +5,7 @@ use tracing::{error, info};
 
 use super::{LanguageToolRequest, LanguageToolRequestBuilder};
 
+#[derive(Copy, Clone)]
 pub(crate) enum _ContainerType {
     _PodMan,
     _Docker,
@@ -14,7 +15,7 @@ pub(crate) enum _ContainerType {
 pub(crate) enum LanguageToolInitialisation {
     AlreadyRunning,
     LocalExecutable(Child),
-    Container(_ContainerType),
+    Container(_ContainerType, Child),
 }
 
 pub(crate) struct LanguageToolRunnerRemote<'a> {
@@ -143,8 +144,50 @@ impl<'a> LanguageToolRunnerLocal<'a> {
                 }
             }
         }
-        error!("language tool container start is not yet supported.");
-        todo!("Not yet implemented.");
+        let container_types = [
+            _ContainerType::_PodMan,
+            _ContainerType::_Docker,
+            _ContainerType::_Incus,
+        ];
+        for container_type in container_types {
+            let cmd = match container_type {
+                _ContainerType::_PodMan => "podman",
+                _ContainerType::_Docker => "docker",
+                _ContainerType::_Incus => "incus",
+            };
+            match Command::new(cmd)
+                .args(&[
+                    "run",
+                    "--name=lt",
+                    "ghcr.io/garrickwelsh/languagetool:latest",
+                ])
+                .kill_on_drop(false)
+                .spawn()
+            {
+                Ok(child) => {
+                    info!("languagetool Was spawned : via {})", cmd);
+                    return LanguageToolRunnerLocal {
+                        port,
+                        language,
+                        initialisation: LanguageToolInitialisation::Container(
+                            container_type,
+                            child,
+                        ),
+                    };
+                }
+                Err(e) => {
+                    if e.kind() == ErrorKind::NotFound {
+                        info!(
+                            "`{}` was not found in path! Attempting other containers!",
+                            cmd
+                        )
+                    } else {
+                        info!("Some strange error occurred attempting to start container!");
+                    }
+                }
+            }
+        }
+        panic!("No mechanism to start language tool was found");
     }
 }
 
@@ -154,14 +197,30 @@ impl<'a> Drop for LanguageToolRunnerLocal<'a> {
             LanguageToolInitialisation::LocalExecutable(_) => {
                 info!("Languagetool should be killed on drop")
             }
-            LanguageToolInitialisation::Container(_ContainerType::_PodMan) => {
-                todo!("Stop podman");
-            }
-            LanguageToolInitialisation::Container(_ContainerType::_Docker) => {
-                todo!("Stop docker");
-            }
-            LanguageToolInitialisation::Container(_ContainerType::_Incus) => {
-                todo!("Stop Incus");
+            LanguageToolInitialisation::Container(container_type, _) => {
+                let cmd = match container_type {
+                    _ContainerType::_PodMan => "podman",
+                    _ContainerType::_Docker => "docker",
+                    _ContainerType::_Incus => "incus",
+                };
+                // Command isn't appropriate to stop podman
+                match Command::new(cmd).args(&["rm", "-f", "lt"]).spawn() {
+                    Ok(mut child) => {
+                        child.wait();
+                        info!("languagetool shutdown attempt : via {})", cmd);
+                    }
+                    Err(e) => {
+                        if e.kind() == ErrorKind::NotFound {
+                            info!(
+                                "`{}` was not found in path! Attempting other containers!",
+                                cmd
+                            )
+                        } else {
+                            info!("Some strange error occurred attempting to start container!");
+                        }
+                    }
+                }
+                info!("Stop {}", cmd);
             }
             LanguageToolInitialisation::AlreadyRunning => {
                 info!("Languagetool was already running no need to shut it down");

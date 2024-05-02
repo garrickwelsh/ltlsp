@@ -181,7 +181,14 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     info!("Config is: {:?}", _config);
     let _config = config::prioritise_runtime_grammar_dirs()?;
     info!("Runtime dirs: {:?}", _config);
-    // Note that  we must have our logging only write out to stderr.
+
+    info!("started language tool server");
+    // Start language tool
+    let _lt = languagetool::manage_service::LanguageToolRunnerLocal::initialise_language_tool(
+        8081, "en-AU",
+    )
+    .await;
+
     info!("starting generic LSP server");
 
     // Create the transport. Includes the stdio (stdin and stdout) versions but this could
@@ -222,6 +229,8 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     };
     main_loop(connection, initialization_params)?;
     io_threads.join()?;
+    info!("Attempting to drop language tool to shutdown");
+    drop(_lt);
 
     // Shut down gracefully.
     info!("shutting down server");

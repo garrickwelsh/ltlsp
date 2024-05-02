@@ -1,4 +1,4 @@
-mod manage_service;
+pub(crate) mod manage_service;
 
 use std::collections::HashMap;
 
