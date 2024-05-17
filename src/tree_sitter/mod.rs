@@ -21,9 +21,10 @@ pub(crate) fn get_language(name: &str) -> Result<Language> {
     use std::path::PathBuf;
 
     use libloading::{Library, Symbol};
-    let mut rel_library_path = PathBuf::new().join("grammars").join(name);
+    let mut rel_library_path = PathBuf::new().join(format!("libtree-sitter-{name}"));
     rel_library_path.set_extension(DYLIB_EXTENSION);
-    let library_path = PathBuf::from("/home/gaz/devel/ltlsp").join(rel_library_path);
+    let library_path =
+        PathBuf::from("/home/gaz/devel/ltlsp/runtime/ltlsp_grammars").join(rel_library_path);
 
     let library = unsafe { Library::new(&library_path) }
         .with_context(|| format!("Error opening dynamic library {:?}", library_path))?;
@@ -41,7 +42,7 @@ pub(crate) fn get_language(name: &str) -> Result<Language> {
 pub(crate) fn parse_rust(file_contents: &str) -> Tree {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_rust::language())
+        .set_language(get_language("rust").unwrap())
         .expect("Error loading language");
     let tree = parser.parse(file_contents, None).unwrap();
     tree

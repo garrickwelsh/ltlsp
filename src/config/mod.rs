@@ -108,6 +108,7 @@ mod test {
 [language.rust]
 library_location = "libtree-sitter-rust.so"
 expresson = [ "(line_comment) @line" ]
+file_extensions = []
 "#,
         )
         .unwrap();
