@@ -116,6 +116,8 @@ fn main_loop(
                             info!("File uri is: {}", document_map["uri"]);
                         }
                     }
+
+                    // Send a test notification diagnostic.
                     let diagnostic = Diagnostic {
                         range: Range::new(
                             Position {

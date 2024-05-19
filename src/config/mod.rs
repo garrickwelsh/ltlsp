@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfig {
-    language: HashMap<String, LanguageSitterConfigNode>,
+    languages: HashMap<String, LanguageSitterConfigNode>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -105,14 +105,14 @@ mod test {
     fn test_toml_configuration() {
         let config: LanguageSitterConfig = toml::from_str(
             r#"
-[language.rust]
+[languages.rust]
 library_location = "libtree-sitter-rust.so"
 expresson = [ "(line_comment) @line" ]
 file_extensions = []
 "#,
         )
         .unwrap();
-        let rust_config = config.language["rust"].clone();
+        let rust_config = config.languages["rust"].clone();
         assert_eq!(rust_config.library_location, "libtree-sitter-rust.so");
     }
 }

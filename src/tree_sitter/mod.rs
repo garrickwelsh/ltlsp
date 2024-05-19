@@ -1,12 +1,17 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use ::tree_sitter::Node;
+use ::tree_sitter::TextProvider;
+use ::tree_sitter::Tree;
+use ::tree_sitter::{Language, Parser};
 use anyhow::Context;
 use anyhow::Result;
 use serde::Deserialize;
-use tree_sitter::Node;
-use tree_sitter::TextProvider;
-use tree_sitter::Tree;
-use tree_sitter::{Language, Parser};
+use tracing::info;
 
 use crate::config::*;
+use crate::tree_sitter;
 
 #[cfg(unix)]
 const DYLIB_EXTENSION: &str = "so";
@@ -17,32 +22,56 @@ const DYLIB_EXTENSION: &str = "dll";
 #[cfg(target_arch = "wasm32")]
 const DYLIB_EXTENSION: &str = "wasm";
 
-pub(crate) fn get_language(name: &str) -> Result<Language> {
+pub(crate) fn get_language(
+    language_name: &str,
+    language_library_name: &str,
+    language_library_search_path: &Vec<PathBuf>,
+) -> Result<Language> {
     use std::path::PathBuf;
 
+    info!("Do something {:?}", language_library_search_path);
     use libloading::{Library, Symbol};
-    let mut rel_library_path = PathBuf::new().join(format!("libtree-sitter-{name}"));
+    let mut rel_library_path = PathBuf::new().join(language_library_name);
     rel_library_path.set_extension(DYLIB_EXTENSION);
-    let library_path =
-        PathBuf::from("/home/gaz/devel/ltlsp/runtime/ltlsp_grammars").join(rel_library_path);
 
-    let library = unsafe { Library::new(&library_path) }
-        .with_context(|| format!("Error opening dynamic library {:?}", library_path))?;
-    let language_fn_name = format!("tree_sitter_{}", name.replace('-', "_"));
-    let language = unsafe {
-        let language_fn: Symbol<unsafe extern "C" fn() -> Language> = library
-            .get(language_fn_name.as_bytes())
-            .with_context(|| format!("Failed to load symbol {}", language_fn_name))?;
-        language_fn()
-    };
-    std::mem::forget(library);
-    Ok(language)
+    info!("{:?}", rel_library_path);
+    for path_buf in language_library_search_path {
+        let lib_path_buf = path_buf.join(&rel_library_path);
+        info!("{:?}", lib_path_buf);
+        if lib_path_buf.exists() {
+            let library = unsafe { Library::new(&lib_path_buf) }
+                .with_context(|| format!("Error opening dynamic library {:?}", lib_path_buf))?;
+            let language_fn_name = format!("tree_sitter_{}", language_name.replace('-', "_"));
+            let language = unsafe {
+                let language_fn: Symbol<unsafe extern "C" fn() -> Language> = library
+                    .get(language_fn_name.as_bytes())
+                    .with_context(|| format!("Failed to load symbol {}", language_fn_name))?;
+                language_fn()
+            };
+            std::mem::forget(library);
+            return Ok(language);
+        }
+    }
+    Result::Err(anyhow::anyhow!(
+        "Unable to find tree sitter library {}",
+        language_library_name
+    ))
 }
 
 pub(crate) fn parse_rust(file_contents: &str) -> Tree {
     let mut parser = Parser::new();
     parser
-        .set_language(get_language("rust").unwrap())
+        .set_language(
+            get_language(
+                "rust",
+                "libtree-sitter-rust",
+                &[PathBuf::from(
+                    "/home/gaz/devel/ltlsp/runtime/ltlsp_grammars",
+                )]
+                .to_vec(),
+            )
+            .unwrap(),
+        )
         .expect("Error loading language");
     let tree = parser.parse(file_contents, None).unwrap();
     tree
@@ -57,9 +86,9 @@ pub(crate) fn get_comments(tree: &Tree, file_contents: &str) -> Vec<String> {
 }
 
 fn get_comments_from_node(comments: &mut Vec<String>, node: Node, file_bytes: &[u8]) {
-    let mut query_cursor = tree_sitter::QueryCursor::new();
+    let mut query_cursor = ::tree_sitter::QueryCursor::new();
     let query =
-        tree_sitter::Query::new(tree_sitter_rust::language(), "(line_comment) @line").unwrap();
+        ::tree_sitter::Query::new(tree_sitter_rust::language(), "(line_comment) @line").unwrap();
     let mut bts = file_bytes;
     query_cursor
         .captures(&query, node, file_bytes)
@@ -73,8 +102,14 @@ fn get_comments_from_node(comments: &mut Vec<String>, node: Node, file_bytes: &[
         });
 }
 
+pub(crate) trait LanguageSitterParsers {
+    fn is_initialised(&self, language: &str) -> bool;
+    fn initialise(&mut self, language: &str) -> Result<()>;
+    fn parse_str<'a>(&self, language: &'a str, s: &'a str) -> Result<Vec<LanguageSitterResult>>;
+}
+
 pub(crate) trait LanguageSitterParser {
-    fn parse_str<'a>(&self, s: &'a str) -> Vec<LanguageSitterResult>;
+    fn parse_str<'a>(&self, s: &'a str) -> Result<Vec<LanguageSitterResult>>;
 }
 
 #[derive(Debug)]
@@ -83,41 +118,122 @@ pub(crate) struct LanguageSitterResult {
     start_pos: usize,
     end_pos: usize,
 }
-
 #[derive(Debug)]
-pub(crate) struct LanguageSitterImpl {
-    language: Language,
+pub(crate) struct LanguageSitters {
+    language_parsers_uninitialised: HashMap<String, LanguageSitterUninitialised>,
+    language_parsers_initialised: HashMap<String, LanguageSitterInitialised>,
 }
 
-impl LanguageSitterParser for LanguageSitterImpl {
-    fn parse_str<'a>(&self, s: &'a str) -> Vec<LanguageSitterResult> {
-        let mut parser = Parser::new();
-        parser.set_language(self.language).unwrap();
-        let tree = parser.parse(s, None).unwrap();
+#[derive(Debug)]
+pub(crate) struct LanguageSitterUninitialised {
+    language_name: String,
+    language_library_name: String,
+    language_library_search_path: Vec<PathBuf>,
+    nodes_to_check: Vec<String>,
+}
 
-        let mut comments = Vec::<String>::new();
+#[derive(Debug)]
+pub(crate) struct LanguageSitterInitialised {
+    language_name: String,
+    language_library_name: String,
+    language_library_search_path: Vec<PathBuf>,
+    nodes_to_check: Vec<String>,
+    language: Language,
+    nodes_to_query: Vec<::tree_sitter::Query>,
+}
+
+impl LanguageSitterUninitialised {
+    pub(crate) fn new(language_config: &LanguageSitterConfig) -> Vec<LanguageSitterUninitialised> {
+        todo!();
+    }
+
+    pub(crate) fn initialise(&self) -> Result<LanguageSitterInitialised> {
+        let language = get_language(
+            &self.language_name,
+            &self.language_library_name,
+            &self.language_library_search_path,
+        )?;
+        let language_sitter = LanguageSitterInitialised {
+            language_name: self.language_name.clone(),
+            language_library_name: self.language_library_name.clone(),
+            language_library_search_path: self.language_library_search_path.clone(),
+            nodes_to_check: self.nodes_to_check.clone(),
+            nodes_to_query: Vec::<::tree_sitter::Query>::with_capacity(self.nodes_to_check.len()),
+            language,
+        };
+
+        Ok(language_sitter)
+    }
+}
+
+impl LanguageSitterParsers for LanguageSitters {
+    fn is_initialised(&self, language: &str) -> bool {
+        self.language_parsers_uninitialised.contains_key(language)
+    }
+
+    fn initialise(&mut self, language: &str) -> Result<()> {
+        let language_sitter = self.language_parsers_initialised.get(language);
+        if language_sitter.is_none() {
+            let uninitialised = self.language_parsers_uninitialised.get(language);
+            if uninitialised.is_none() {
+                return Result::Err(anyhow::anyhow!(
+                    "Unable to find tree sitter library for language {}",
+                    language
+                ));
+            }
+            let language_sitter_initialised = uninitialised.unwrap().initialise()?;
+            self.language_parsers_initialised
+                .insert(language.to_string(), language_sitter_initialised);
+        }
+        Ok(())
+    }
+
+    fn parse_str<'a>(&self, language: &'a str, s: &'a str) -> Result<Vec<LanguageSitterResult>> {
+        let Some(language_sitter) = self.language_parsers_initialised.get(language) else {
+            return anyhow::Result::Err(anyhow::anyhow!(
+                "Language \"{}\" not initialised",
+                language
+            ));
+        };
+        language_sitter.parse_str(s)
+    }
+}
+
+impl LanguageSitterParser for LanguageSitterInitialised {
+    fn parse_str<'a>(&self, s: &'a str) -> Result<Vec<LanguageSitterResult>> {
+        let mut parser = Parser::new();
+        parser.set_language(self.language)?;
+
+        let Some(tree) = parser.parse(s, None) else {
+            return anyhow::Result::Err(anyhow::anyhow!(
+                "Error parsing. \"{}\" tree sitter did not return a tree",
+                self.language_name
+            ));
+        };
+
         let root_node = tree.root_node();
         let mut sbytes = s.as_bytes();
-        let mut query_cursor = tree_sitter::QueryCursor::new();
-        let query =
-            tree_sitter::Query::new(tree_sitter_rust::language(), "(line_comment) @line").unwrap();
-
         let mut result = Vec::<LanguageSitterResult>::new();
-        query_cursor
-            .captures(&query, root_node, sbytes)
-            .for_each(|c| {
-                println!("Capture test: {:?}", c);
-                c.0.captures.into_iter().for_each(|cap| {
-                    sbytes.text(cap.node).for_each(|deep| {
-                        result.push(LanguageSitterResult {
-                            text: std::str::from_utf8(deep).unwrap().to_string(),
-                            start_pos: cap.node.start_byte(),
-                            end_pos: cap.node.end_byte(),
-                        });
-                        // comments.push(std::str::from_utf8(deep).unwrap().to_string());
-                    })
+
+        let mut query_cursor = ::tree_sitter::QueryCursor::new();
+
+        for query in &self.nodes_to_query {
+            query_cursor
+                .captures(query, root_node, sbytes)
+                .for_each(|c| {
+                    println!("Capture test: {:?}", c);
+                    c.0.captures.into_iter().for_each(|cap| {
+                        sbytes.text(cap.node).for_each(|deep| {
+                            result.push(LanguageSitterResult {
+                                text: std::str::from_utf8(deep).unwrap().to_string(),
+                                start_pos: cap.node.start_byte(),
+                                end_pos: cap.node.end_byte(),
+                            });
+                            // comments.push(std::str::from_utf8(deep).unwrap().to_string());
+                        })
+                    });
                 });
-            });
+        }
         todo!();
     }
 }
@@ -128,6 +244,7 @@ mod tests {
 
     #[test]
     fn test_verify_rust_parsing() {
+        let _ = crate::test_utils::setup_tracing();
         let rust = r###"
  // This is a comment, and is ignored by the compiler.
 // You can test this code by clicking the "Run" button over there ->
@@ -159,6 +276,7 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
     }
     #[test]
     fn test_parser() {
+        let _ = crate::test_utils::setup_tracing();
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_rust::language())
@@ -174,6 +292,7 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
 
     #[test]
     fn test_rust_identify_comments() {
+        let _ = crate::test_utils::setup_tracing();
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_rust::language())
@@ -197,6 +316,7 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
     }
     #[test]
     fn test_markdown_identify_text() {
+        let _ = crate::test_utils::setup_tracing();
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_md::language())
