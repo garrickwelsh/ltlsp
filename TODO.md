@@ -4,15 +4,15 @@
 - [x] Setup tracing to log to a file
 - [ ] Make tracing file not specific to unique setup
 - [ ] Make tracing file configurable
-- [ ] Create container file with setup to allow building of grammars and tooling
+- [x] Create container file with setup to allow building of grammars and tooling
 
 ## Tooling
-- [ ] Setup Dev Containers
+- [x] Setup Dev Containers
 - [x] Setup LanguageTool container
-- [ ] Setup github build to push container to ghcr.io
-	- [ ] Make repository public
+- [x] Setup github build to push container to ghcr.io
+	- [x] Make repository public
 	- [x] Make build process to create container
-	- [ ] Push container to ghcr.io
+	- [x] Push container to ghcr.io
 - [x] Setup LanguageTool container
 - [ ] Setup container to run whole ltlsp solution
 
@@ -31,7 +31,7 @@
 - [x] Install rust grammar
 - [x] Read rust file using tree-sitter grammar
 - [x] Read rust file and get line comments
-- [ ] Setup comments configuration from a config file
+- [x] Setup comments configuration from a config file
 - [ ] Setup config to setup grammars for use
 - [ ] Build grammars to support multiple languages
 - [ ] Support nested grammars (needed for markdown)
@@ -41,7 +41,7 @@
 - [x] Run LanguageTool locally and then shutdown on Dispose of Runner
 - [ ] Refactor - Separate LanguageTool remote server and local server support
 - [ ] Add support for LanguageTool professional version
-- [ ] Add Podman container support that will let the LanguageTool be started and stopped and easily
+- [x] Add Podman container support that will let the LanguageTool be started and stopped and easily
 - [ ] Add Docker container support that will let the LanguageTool be started and stopped and easily
 - [ ] Add Incus container support that will let the LanguageTool be started and stopped and easily
 
