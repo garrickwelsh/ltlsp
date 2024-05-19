@@ -58,50 +58,6 @@ pub(crate) fn get_language(
     ))
 }
 
-pub(crate) fn parse_rust(file_contents: &str) -> Tree {
-    let mut parser = Parser::new();
-    parser
-        .set_language(
-            get_language(
-                "rust",
-                "libtree-sitter-rust",
-                &[PathBuf::from(
-                    "/home/gaz/devel/ltlsp/runtime/ltlsp_grammars",
-                )]
-                .to_vec(),
-            )
-            .unwrap(),
-        )
-        .expect("Error loading language");
-    let tree = parser.parse(file_contents, None).unwrap();
-    tree
-}
-
-pub(crate) fn get_comments(tree: &Tree, file_contents: &str) -> Vec<String> {
-    let mut comments = Vec::<String>::new();
-    let root_node = tree.root_node();
-    let file_bytes = file_contents.as_bytes();
-    get_comments_from_node(&mut comments, root_node, file_bytes);
-    comments
-}
-
-fn get_comments_from_node(comments: &mut Vec<String>, node: Node, file_bytes: &[u8]) {
-    let mut query_cursor = ::tree_sitter::QueryCursor::new();
-    let query =
-        ::tree_sitter::Query::new(tree_sitter_rust::language(), "(line_comment) @line").unwrap();
-    let mut bts = file_bytes;
-    query_cursor
-        .captures(&query, node, file_bytes)
-        // query.capture_names().into_iter().for_each(|c| {
-        .for_each(|c| {
-            println!("Capture test: {:?}", c);
-            c.0.captures.into_iter().for_each(|cap| {
-                bts.text(cap.node)
-                    .for_each(|deep| comments.push(std::str::from_utf8(deep).unwrap().to_string()))
-            });
-        });
-}
-
 pub(crate) trait LanguageSitterParsers {
     fn is_initialised(&self, language: &str) -> bool;
     fn initialise(&mut self, language: &str) -> Result<()>;
@@ -142,23 +98,51 @@ pub(crate) struct LanguageSitterInitialised {
     nodes_to_query: Vec<::tree_sitter::Query>,
 }
 
+impl LanguageSitters {
+    pub(crate) fn new(
+        language_configs: &HashMap<String, LanguageSitterConfigNode>,
+    ) -> Result<LanguageSitters> {
+        let mut uninitalised = HashMap::<String, LanguageSitterUninitialised>::new();
+        for (language, language_config) in language_configs {
+            uninitalised.insert(
+                language.clone(),
+                LanguageSitterUninitialised::new(language, language_config)?,
+            );
+        }
+        Ok(Self {
+            language_parsers_uninitialised: uninitalised,
+            language_parsers_initialised: HashMap::<String, LanguageSitterInitialised>::new(),
+        })
+    }
+}
+
 impl LanguageSitterUninitialised {
-    pub(crate) fn new(language_config: &LanguageSitterConfig) -> Vec<LanguageSitterUninitialised> {
-        todo!();
+    pub(crate) fn new(language: &str, language_config: &LanguageSitterConfigNode) -> Result<Self> {
+        Ok(Self {
+            language_name: language.to_string(),
+            language_library_name: language_config.language_library_name.clone(),
+            nodes_to_check: language_config.expressions.clone(),
+            language_library_search_path: crate::config::prioritise_runtime_grammar_dirs()?,
+        })
     }
 
     pub(crate) fn initialise(&self) -> Result<LanguageSitterInitialised> {
+        info!("LanguageSitterUninitialised: {:?}", self);
         let language = get_language(
             &self.language_name,
             &self.language_library_name,
             &self.language_library_search_path,
         )?;
-        let language_sitter = LanguageSitterInitialised {
+        let mut language_sitter = LanguageSitterInitialised {
             language_name: self.language_name.clone(),
             language_library_name: self.language_library_name.clone(),
             language_library_search_path: self.language_library_search_path.clone(),
             nodes_to_check: self.nodes_to_check.clone(),
-            nodes_to_query: Vec::<::tree_sitter::Query>::with_capacity(self.nodes_to_check.len()),
+            nodes_to_query: self
+                .nodes_to_check
+                .iter()
+                .map(|s| ::tree_sitter::Query::new(language, &s).unwrap())
+                .collect(),
             language,
         };
 
@@ -234,7 +218,7 @@ impl LanguageSitterParser for LanguageSitterInitialised {
                     });
                 });
         }
-        todo!();
+        Ok(result)
     }
 }
 
@@ -263,15 +247,25 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
     println!("Hello World!");
 }
 "###;
-        let tree = parse_rust(rust);
-        let root_node = tree.root_node();
+        let language_sitter = LanguageSitterUninitialised::new(
+            "rust",
+            &LanguageSitterConfigNode {
+                language_library_name: "libtree-sitter-rust".to_string(),
+                file_extensions: ["rs".to_string(), "ltlsp".to_string()].to_vec(),
+                expressions: [
+                    "(line_comment) @line".to_string(),
+                    "(block_comment) @block".to_string(),
+                ]
+                .to_vec(),
+            },
+        )
+        .unwrap()
+        .initialise()
+        .unwrap();
+        let comments = language_sitter.parse_str(rust).unwrap();
 
-        assert_eq!(root_node.kind(), "source_file");
-        println!("{:?}", root_node.to_sexp());
-        let comments = get_comments(&tree, rust);
-        println!("Comments vec - {:?}", comments);
         for i in comments {
-            println!("{:?}", i);
+            info!("{:?}", i);
         }
     }
     #[test]

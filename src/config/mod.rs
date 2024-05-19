@@ -15,9 +15,9 @@ pub(crate) struct LanguageSitterConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfigNode {
-    library_location: String,
-    file_extensions: Vec<String>,
-    expresson: Vec<String>,
+    pub(crate) language_library_name: String,
+    pub(crate) file_extensions: Vec<String>,
+    pub(crate) expressions: Vec<String>,
 }
 
 pub(crate) fn prioritise_config_dirs() -> Result<Vec<PathBuf>> {
@@ -106,13 +106,13 @@ mod test {
         let config: LanguageSitterConfig = toml::from_str(
             r#"
 [languages.rust]
-library_location = "libtree-sitter-rust.so"
-expresson = [ "(line_comment) @line" ]
+language_library_name = "libtree-sitter-rust.so"
+expressions = [ "(line_comment) @line" ]
 file_extensions = []
 "#,
         )
         .unwrap();
         let rust_config = config.languages["rust"].clone();
-        assert_eq!(rust_config.library_location, "libtree-sitter-rust.so");
+        assert_eq!(rust_config.language_library_name, "libtree-sitter-rust.so");
     }
 }
