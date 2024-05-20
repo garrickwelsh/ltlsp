@@ -265,7 +265,8 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
         let comments = language_sitter.parse_str(rust).unwrap();
 
         for i in comments {
-            info!("{:?}", i);
+            info!("Comment: {}", i.text);
+            // info!("{:?}", i);
         }
     }
     #[test]

@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct LanguageSitterConfig {
-    languages: HashMap<String, LanguageSitterConfigNode>,
+    pub(crate) languages: HashMap<String, LanguageSitterConfigNode>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

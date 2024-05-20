@@ -28,6 +28,7 @@ use tracing::info;
 
 use crate::document::Document;
 use crate::lsp_server::Notification;
+use crate::tree_sitter::LanguageSitters;
 
 mod config;
 mod document;
@@ -183,6 +184,9 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     info!("Config is: {:?}", _config);
     let _config = config::prioritise_runtime_grammar_dirs()?;
     info!("Runtime dirs: {:?}", _config);
+
+    let cfg = config::get_tree_sitter_config()?;
+    let _language_sitter = LanguageSitters::new(&cfg.languages)?;
 
     info!("started language tool server");
     // Start language tool

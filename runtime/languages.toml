@@ -1,6 +1,7 @@
-# Configuration to find a builid languages libraries for loading
+# Configuration to find a build languages libraries for loading
 
-[language.rust]
+[languages.rust]
+language_library_name = "rust"
 library_location = "libtree-sitter-rust.so"
 file_extensions = [ "rs", "ltlsp" ]
-expresson = [ "(line_comment) @line", "(block_comment) @block" ]
+expressions = [ "(line_comment) @line", "(block_comment) @block" ]
