@@ -70,9 +70,9 @@ pub(crate) trait LanguageSitterParser {
 
 #[derive(Debug)]
 pub(crate) struct LanguageSitterResult {
-    text: String,
-    start_pos: usize,
-    end_pos: usize,
+    pub(crate) text: String,
+    pub(crate) start_pos: usize,
+    pub(crate) end_pos: usize,
 }
 #[derive(Debug)]
 pub(crate) struct LanguageSitters {

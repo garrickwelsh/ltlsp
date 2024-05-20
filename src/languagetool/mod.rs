@@ -90,6 +90,9 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use crate::config::LanguageSitterConfigNode;
+    use crate::tree_sitter::{LanguageSitterParser, LanguageSitterUninitialised};
+
     use super::super::test_utils::setup_tracing;
     use super::LanguageToolRequestBuilder;
     use super::*;
@@ -152,6 +155,66 @@ mod tests {
         request.add_markup("</h1>");
         let result = request.execute_request().await?;
         info!(result);
+        drop(request);
+        drop(lt);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn query_language_tool_with_data_from_treesitter(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::languagetool::manage_service::LanguageToolRunner;
+        setup_tracing()?;
+        let _ = crate::test_utils::setup_tracing();
+        let rust = r###"
+ // This is a comment, and is ignored by the compiler.
+// You can test this code by clicking the "Run" button over there ->
+// or if you prefer to use your keyboard, you can use the "Ctrl + Enter"
+// shortcut.
+
+// This code is editable, feel free to hack it!
+// You can always return to the original code by clicking the "Reset" button ->
+
+//! This is the main function.
+/* Another comment type */
+fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
+    // Statements here are executed when the compiled binary is called.
+
+    // Print text to the console.
+    println!("Hello World!");
+}
+"###;
+        let language_sitter = LanguageSitterUninitialised::new(
+            "rust",
+            &LanguageSitterConfigNode {
+                language_library_name: "libtree-sitter-rust".to_string(),
+                file_extensions: ["rs".to_string(), "ltlsp".to_string()].to_vec(),
+                expressions: [
+                    "(line_comment) @line".to_string(),
+                    "(block_comment) @block".to_string(),
+                ]
+                .to_vec(),
+            },
+        )
+        .unwrap()
+        .initialise()
+        .unwrap();
+
+        let comments = language_sitter.parse_str(rust).unwrap();
+        let lt_comments = comments
+            .iter()
+            .map(|c| c.text.clone())
+            .collect::<Vec<String>>();
+        let lt = LanguageToolRunnerLocal::initialise_language_tool(8081, "en-AU").await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        let mut request = lt.new_request();
+        for c in &lt_comments {
+            request.add_text(c);
+        }
+        let result = request.execute_request().await?;
+        info!(result);
+        drop(comments);
         drop(request);
         drop(lt);
         Ok(())

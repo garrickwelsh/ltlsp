@@ -84,25 +84,6 @@ fn main_loop(
                     Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
                     Err(ExtractError::MethodMismatch(req)) => req,
                 };
-
-                // Removed goto defintion from capabilities
-                // match cast::<GotoDefinition>(req) {
-                //     Ok((id, params)) => {
-                //         info!("got gotoDefinition request #{id}: {params:?}");
-                //         let result = Some(GotoDefinitionResponse::Array(Vec::new()));
-                //         let result = serde_json::to_value(&result).unwrap();
-                //         let resp = Response {
-                //             id,
-                //             result: Some(result),
-                //             error: None,
-                //         };
-                //         connection.sender.send(Message::Response(resp))?;
-                //         continue;
-                //     }
-                //     Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
-                //     Err(ExtractError::MethodMismatch(req)) => req,
-                // };
-                // ...
             }
             Message::Response(resp) => {
                 info!("got response: {resp:?}");
