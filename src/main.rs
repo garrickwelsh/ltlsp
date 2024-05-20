@@ -45,6 +45,7 @@ fn main_loop(
 ) -> Result<(), Box<dyn Error + Sync + Send>> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
     let _documents = HashMap::<String, Document>::new();
+    let mut version: i32 = 0;
     info!("starting example main loop");
     for msg in &connection.receiver {
         info!("got msg: {msg:?}");
@@ -108,7 +109,7 @@ fn main_loop(
             }
             Message::Notification(not) => {
                 info!("got notification: {not:?}");
-                if not.method == "textDocument/didOpen" {
+                if not.method == "textDocument/didOpen" || not.method == "textDocument/didChange" {
                     // Proof of Concept: Send back an error.
                     if let serde_json::Value::Object(map) = not.params {
                         if let serde_json::Value::Object(document_map) = map["textDocument"].clone()
@@ -119,34 +120,39 @@ fn main_loop(
                     }
 
                     // Send a test notification diagnostic.
-                    let diagnostic = Diagnostic {
-                        range: Range::new(
-                            Position {
-                                line: 1,
-                                character: 1,
-                            },
-                            Position {
-                                line: 1,
-                                character: 5,
-                            },
-                        ),
-                        // downgrade to hint if we're pointing at the macro
-                        severity: Some(lsp_types::DiagnosticSeverity::HINT),
-                        code: Some(lsp_types::NumberOrString::String(
-                            "An error for as an example".to_string(),
-                        )),
-                        code_description: None,
-                        source: Some("Language tool".to_string()),
-                        message: "Fix yee spelling".to_string(),
-                        related_information: None,
-                        tags: None,
-                        data: None, // Some(serde_json::json!({ "rendered": rd.rendered })),
-                    };
+                    let mut diagnostics = Vec::<Diagnostic>::new();
+                    if version == 0 {
+                        let diagnostic = Diagnostic {
+                            range: Range::new(
+                                Position {
+                                    line: 1,
+                                    character: 1,
+                                },
+                                Position {
+                                    line: 1,
+                                    character: 5,
+                                },
+                            ),
+                            // downgrade to hint if we're pointing at the macro
+                            severity: Some(lsp_types::DiagnosticSeverity::HINT),
+                            code: Some(lsp_types::NumberOrString::String(
+                                "An error for as an example".to_string(),
+                            )),
+                            code_description: None,
+                            source: Some("Language tool".to_string()),
+                            message: "Fix yee spelling".to_string(),
+                            related_information: None,
+                            tags: None,
+                            data: None, // Some(serde_json::json!({ "rendered": rd.rendered })),
+                        };
+                        diagnostics.push(diagnostic);
+                    }
                     let diagnostic_params = PublishDiagnosticsParams::new(
                         lsp_types::Url::parse("file:///home/gaz/devel/ltlsp/test.ltlsp")?,
-                        [diagnostic.clone()].to_vec(),
-                        None,
+                        diagnostics,
+                        Some(version),
                     );
+                    version += 1;
                     let not = lsp_server::Notification::new(
                         <lsp_types::notification::PublishDiagnostics as lsp_types::notification::Notification>::METHOD
                             .to_owned(),
