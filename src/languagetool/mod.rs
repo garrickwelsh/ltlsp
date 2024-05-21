@@ -3,7 +3,7 @@ pub(crate) mod manage_service;
 use std::collections::HashMap;
 
 use reqwest;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::tree_sitter::LanguageSitterResult;
@@ -20,7 +20,82 @@ pub(crate) struct LanguageToolRequest<'a> {
 pub(crate) trait LanguageToolRequestBuilder<'a> {
     fn add_text(&mut self, text: &'a str);
     fn add_markup(&mut self, markup: &'a str);
-    async fn execute_request(&self) -> Result<String, reqwest::Error>;
+    async fn execute_request(&self) -> Result<LanguageToolResult, reqwest::Error>;
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResult {
+    software: LanguageToolResultSoftware,
+    language: LanguageToolResultLanguage,
+    matches: Vec<LanguageToolResultMatch>,
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultSoftware {
+    name: String,
+    version: String,
+    build_date: String,
+    api_version: i32,
+    status: String,
+    premium: bool,
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultLanguage {
+    name: String,
+    code: String,
+    detected_language: LanguageToolResultLanguageDetected,
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultLanguageDetected {
+    name: String,
+    code: String,
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultMatch {
+    message: String,
+    short_message: String,
+    offset: i32,
+    length: i32,
+    sentence: String,
+    replacements: Vec<LanguageToolResultListItem>,
+    context: LanguageToolResultMatchContext,
+    rule: LanguageToolResultMatchRule,
+}
+
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultListItem {
+    value: String,
+}
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultMatchContext {
+    text: String,
+    offset: i32,
+    length: i32,
+}
+#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultMatchRule {
+    id: String,
+    sub_id: String,
+    description: String,
+    urls: Option<Vec<LanguageToolResultListItem>>,
+    issue_type: String,
+    category: LanguageToolResultMatchRuleCategory,
+}
+#[derive(Debug, Deserialize)]
+pub(crate) struct LanguageToolResultMatchRuleCategory {
+    id: String,
+    name: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -49,7 +124,7 @@ impl<'a> LanguageToolRequestBuilder<'a> for LanguageToolRequest<'a> {
             .push(LanguageToolText::Markup(markup));
     }
 
-    async fn execute_request(&self) -> Result<String, reqwest::Error> {
+    async fn execute_request(&self) -> Result<LanguageToolResult, reqwest::Error> {
         let request_data = serde_json::to_string_pretty(&self.document_data).unwrap();
         let mut map = HashMap::<&str, &str>::new();
         map.insert("language", self.language);
@@ -57,7 +132,11 @@ impl<'a> LanguageToolRequestBuilder<'a> for LanguageToolRequest<'a> {
         let url = format!("http://{}:{}/v2/check", self.server, self.port);
         let client = reqwest::Client::new();
         let res = client.post(url).form(&map).send().await?;
-        let result = res.text().await?;
+        // let result = res.text().await?;
+        // info!("{:?}", result);
+        // todo!();
+        let result = res.json::<LanguageToolResult>().await?;
+        info!("{:?}", result);
         Ok(result)
     }
 }
@@ -154,7 +233,7 @@ mod tests {
         request.add_text("Is this something you're able to help me with?");
         request.add_markup("</h1>");
         let result = request.execute_request().await?;
-        info!(result);
+        info!("{:?}", result);
         drop(request);
         drop(lt);
         Ok(())
@@ -213,7 +292,7 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
             request.add_text(c);
         }
         let result = request.execute_request().await?;
-        info!(result);
+        info!("{:?}", result);
         drop(comments);
         drop(request);
         drop(lt);

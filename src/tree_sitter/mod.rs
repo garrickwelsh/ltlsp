@@ -133,7 +133,7 @@ impl LanguageSitterUninitialised {
             &self.language_library_name,
             &self.language_library_search_path,
         )?;
-        let mut language_sitter = LanguageSitterInitialised {
+        let language_sitter = LanguageSitterInitialised {
             language_name: self.language_name.clone(),
             language_library_name: self.language_library_name.clone(),
             language_library_search_path: self.language_library_search_path.clone(),
