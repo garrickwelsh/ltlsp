@@ -32,6 +32,7 @@ use crate::tree_sitter::LanguageSitters;
 
 mod config;
 mod document;
+mod document_checker;
 mod languagetool;
 mod lsp_server;
 mod tree_sitter;

@@ -71,9 +71,12 @@ pub(crate) trait LanguageSitterParser {
 #[derive(Debug)]
 pub(crate) struct LanguageSitterResult {
     pub(crate) text: String,
-    pub(crate) start_pos: usize,
-    pub(crate) end_pos: usize,
+    pub(crate) start_row: u32,
+    pub(crate) start_column: u32,
+    pub(crate) end_row: u32,
+    pub(crate) end_column: u32,
 }
+
 #[derive(Debug)]
 pub(crate) struct LanguageSitters {
     language_parsers_uninitialised: HashMap<String, LanguageSitterUninitialised>,
@@ -208,12 +211,15 @@ impl LanguageSitterParser for LanguageSitterInitialised {
                     println!("Capture test: {:?}", c);
                     c.0.captures.into_iter().for_each(|cap| {
                         sbytes.text(cap.node).for_each(|deep| {
+                            let start_pos = cap.node.start_position();
+                            let end_pos = cap.node.end_position();
                             result.push(LanguageSitterResult {
                                 text: std::str::from_utf8(deep).unwrap().to_string(),
-                                start_pos: cap.node.start_byte(),
-                                end_pos: cap.node.end_byte(),
+                                start_row: usize::try_into(start_pos.row).unwrap(),
+                                start_column: usize::try_into(start_pos.column).unwrap(),
+                                end_row: usize::try_into(end_pos.row).unwrap(),
+                                end_column: usize::try_into(end_pos.column).unwrap(),
                             });
-                            // comments.push(std::str::from_utf8(deep).unwrap().to_string());
                         })
                     });
                 });
