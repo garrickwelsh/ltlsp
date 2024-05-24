@@ -111,10 +111,10 @@ impl LanguageToolRunnerRemote {
 
 impl<'a> LanguageToolRunnerLocal {
     /// Startup language tool if it's not already running.
-    pub(crate) async fn initialise_language_tool(
+    pub(crate) async fn initialise_language_tool_local(
         port: u16,
         language: &str,
-    ) -> impl LanguageToolRunner {
+    ) -> LanguageToolRunnerLocal {
         if check_if_languagetool_up("localhost", port, language).await {
             info!("languagetool already running :)");
             return LanguageToolRunnerLocal {
@@ -188,6 +188,13 @@ impl<'a> LanguageToolRunnerLocal {
             }
         }
         panic!("No mechanism to start language tool was found");
+    }
+
+    pub(crate) async fn initialise_language_tool(
+        port: u16,
+        language: &str,
+    ) -> impl LanguageToolRunner {
+        LanguageToolRunnerLocal::initialise_language_tool_local(port, language).await
     }
 }
 
