@@ -23,16 +23,16 @@ pub(crate) trait LanguageToolRequestBuilder<'a> {
     async fn execute_request(&self) -> Result<LanguageToolResult, reqwest::Error>;
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResult {
-    software: LanguageToolResultSoftware,
-    language: LanguageToolResultLanguage,
-    matches: Vec<LanguageToolResultMatch>,
+    pub(crate) software: LanguageToolResultSoftware,
+    pub(crate) language: LanguageToolResultLanguage,
+    pub(crate) matches: Vec<LanguageToolResultMatch>,
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultSoftware {
     name: String,
     version: String,
@@ -42,56 +42,59 @@ pub(crate) struct LanguageToolResultSoftware {
     premium: bool,
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultLanguage {
     name: String,
     code: String,
     detected_language: LanguageToolResultLanguageDetected,
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultLanguageDetected {
     name: String,
     code: String,
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultMatch {
-    message: String,
-    short_message: String,
-    offset: i32,
-    length: i32,
-    sentence: String,
-    replacements: Vec<LanguageToolResultListItem>,
-    context: LanguageToolResultMatchContext,
-    rule: LanguageToolResultMatchRule,
+    pub(crate) message: String,
+    pub(crate) short_message: String,
+    pub(crate) offset: i32,
+    pub(crate) length: i32,
+    pub(crate) sentence: String,
+    pub(crate) replacements: Vec<LanguageToolResultListItem>,
+    pub(crate) context: LanguageToolResultMatchContext,
+    pub(crate) rule: LanguageToolResultMatchRule,
 }
 
-#[serde(rename_all = "camelCase")]
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultListItem {
     value: String,
 }
-#[serde(rename_all = "camelCase")]
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultMatchContext {
     text: String,
     offset: i32,
     length: i32,
 }
-#[serde(rename_all = "camelCase")]
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultMatchRule {
     id: String,
-    sub_id: String,
+    sub_id: Option<String>,
     description: String,
     urls: Option<Vec<LanguageToolResultListItem>>,
     issue_type: String,
     category: LanguageToolResultMatchRuleCategory,
 }
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct LanguageToolResultMatchRuleCategory {
     id: String,
@@ -141,8 +144,8 @@ impl<'a> LanguageToolRequestBuilder<'a> for LanguageToolRequest<'a> {
     }
 }
 
-pub(crate) struct LanguageTool<'a> {
-    runner: LanguageToolRunnerRemote<'a>,
+pub(crate) struct LanguageTool {
+    runner: LanguageToolRunnerRemote,
 }
 
 impl<'a> LanguageToolRequest<'a> {

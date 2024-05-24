@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::AsyncFn;
 use std::path::PathBuf;
 
 use ::tree_sitter::Node;
@@ -11,6 +12,7 @@ use serde::Deserialize;
 use tracing::info;
 
 use crate::config::*;
+use crate::languagetool::LanguageToolRequestBuilder;
 use crate::tree_sitter;
 
 #[cfg(unix)]
@@ -71,10 +73,8 @@ pub(crate) trait LanguageSitterParser {
 #[derive(Debug)]
 pub(crate) struct LanguageSitterResult {
     pub(crate) text: String,
-    pub(crate) start_row: u32,
-    pub(crate) start_column: u32,
-    pub(crate) end_row: u32,
-    pub(crate) end_column: u32,
+    pub(crate) start_pos: i32,
+    pub(crate) end_pos: i32,
 }
 
 #[derive(Debug)]
@@ -211,14 +211,12 @@ impl LanguageSitterParser for LanguageSitterInitialised {
                     println!("Capture test: {:?}", c);
                     c.0.captures.into_iter().for_each(|cap| {
                         sbytes.text(cap.node).for_each(|deep| {
-                            let start_pos = cap.node.start_position();
-                            let end_pos = cap.node.end_position();
+                            let start_pos = cap.node.start_byte();
+                            let end_pos = cap.node.end_byte();
                             result.push(LanguageSitterResult {
                                 text: std::str::from_utf8(deep).unwrap().to_string(),
-                                start_row: usize::try_into(start_pos.row).unwrap(),
-                                start_column: usize::try_into(start_pos.column).unwrap(),
-                                end_row: usize::try_into(end_pos.row).unwrap(),
-                                end_column: usize::try_into(end_pos.column).unwrap(),
+                                start_pos: usize::try_into(start_pos).unwrap(),
+                                end_pos: usize::try_into(end_pos).unwrap(),
                             });
                         })
                     });
@@ -228,9 +226,117 @@ impl LanguageSitterParser for LanguageSitterInitialised {
     }
 }
 
+pub(crate) enum LanguageSitterText<'a> {
+    Markup(&'a str),
+    Text(&'a str),
+}
+
+// impl LanguageSitterInitialised {
+//     fn parse_str_test<'a, F, G>(
+//         &'a self,
+//         request_builder: &'a mut G,
+//         s: &'a str,
+//         f: F,
+//     ) -> Result<&'a mut G>
+//     where
+//         F: std::ops::Fn(&mut G, LanguageSitterText),
+//         G: LanguageToolRequestBuilder<'a>,
+//     {
+//         let mut parser = Parser::new();
+//         parser.set_language(self.language)?;
+
+//         let Some(tree) = parser.parse(s, None) else {
+//             return anyhow::Result::Err(anyhow::anyhow!(
+//                 "Error parsing. \"{}\" tree sitter did not return a tree",
+//                 self.language_name
+//             ));
+//         };
+
+//         let root_node = tree.root_node();
+//         let mut sbytes = s.as_bytes();
+//         let mut result = Vec::<LanguageSitterResult>::new();
+
+//         // self.nodes_to_check
+//         let mut tree_cursor = root_node.walk();
+//         loop {
+//             let node = tree_cursor.node();
+//             let s = node.utf8_text(sbytes)?;
+//             f(request_builder, LanguageSitterText::Markup(s));
+//             info!("{:?}", node);
+//             if !tree_cursor.goto_next_sibling() {
+//                 break;
+//             }
+//         }
+
+//         Ok(request_builder)
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // use std::sync::Arc;
+    // use crate::languagetool::manage_service::LanguageToolRunner;
+    // use crate::languagetool::manage_service::LanguageToolRunnerLocal;
+    //     #[tokio::test]
+    //     async fn test_verify_rust_parsing_experiment() {
+    //         let _ = crate::test_utils::setup_tracing();
+    //         let rust = r###"
+    //  // This is a comment, and is ignored by the compiler.
+    // // You can test this code by clicking the "Run" button over there ->
+    // // or if you prefer to use your keyboard, you can use the "Ctrl + Enter"
+    // // shortcut.
+
+    // // This code is editable, feel free to hack it!
+    // // You can always return to the original code by clicking the "Reset" button ->
+
+    // //! This is the main function.
+    // /* Another comment type */
+    // fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
+    //     // Statements here are executed when the compiled binary is called.
+
+    //     // Print text to the console.
+    //     println!("Hello World!");
+    // }
+    // "###;
+    //         let language_sitter = LanguageSitterUninitialised::new(
+    //             "rust",
+    //             &LanguageSitterConfigNode {
+    //                 language_library_name: "libtree-sitter-rust".to_string(),
+    //                 file_extensions: ["rs".to_string(), "ltlsp".to_string()].to_vec(),
+    //                 expressions: [
+    //                     "(line_comment) @line".to_string(),
+    //                     "(block_comment) @block".to_string(),
+    //                 ]
+    //                 .to_vec(),
+    //             },
+    //         )
+    //         .unwrap()
+    //         .initialise()
+    //         .unwrap();
+    //         let lt = LanguageToolRunnerLocal::initialise_language_tool(8081, "rust").await;
+    //         let mut request_builder = lt.new_request();
+    //         language_sitter
+    //             .parse_str_test(
+    //                 &mut request_builder,
+    //                 rust,
+    //                 |builder, language_sitter_text| match language_sitter_text {
+    //                     LanguageSitterText::Markup(s) => builder.add_markup(s),
+    //                     LanguageSitterText::Text(s) => builder.add_text(s),
+    //                     _ => (),
+    //                 },
+    //             )
+    //             .unwrap()
+    //             .execute_request()
+    //             .await;
+    //         let comments = language_sitter.parse_str(rust).unwrap();
+
+    //         for i in comments {
+    //             info!("Comment: {}", i.text);
+    //             // info!("{:?}", i);
+    //         }
+    //     }
 
     #[test]
     fn test_verify_rust_parsing() {
@@ -275,67 +381,29 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
             // info!("{:?}", i);
         }
     }
-    #[test]
-    fn test_parser() {
-        let _ = crate::test_utils::setup_tracing();
-        let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_rust::language())
-            .expect("Error loading Rust grammar");
-        let source_code = "fn test() {}";
-        let tree = parser.parse(source_code, None).unwrap();
-        let root_node = tree.root_node();
 
-        assert_eq!(root_node.kind(), "source_file");
-        assert_eq!(root_node.start_position().column, 0);
-        assert_eq!(root_node.end_position().column, 12);
-    }
+    // #[test]
+    // #[ignore]
+    // fn test_markdown_identify_text() {
+    //     let _ = crate::test_utils::setup_tracing();
+    //     let mut parser = Parser::new();
+    //     parser
+    //         .set_language(tree_sitter_md::language())
+    //         .expect("Error loading Rust grammar");
+    //     let source_code = r###"""# Heading
+    //     Some text with a [https://github.com/](Github)
+    //     """###;
+    //     let tree = parser.parse(source_code, None).unwrap();
+    //     let root_node = tree.root_node();
 
-    #[test]
-    fn test_rust_identify_comments() {
-        let _ = crate::test_utils::setup_tracing();
-        let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_rust::language())
-            .expect("Error loading Rust grammar");
-        let source_code = r###"""
-        /// This is a comment..
-        fn test() {}
-        """###;
-        let tree = parser.parse(source_code, None).unwrap();
-        let root_node = tree.root_node();
-
-        println!("{:?}", root_node);
-        println!("{:?}", root_node.to_sexp());
-        let mut cursor = root_node.walk();
-        for i in root_node.children(&mut cursor) {
-            println!("{:?}", i);
-        }
-        assert_eq!(root_node.kind(), "source_file");
-        assert_eq!(root_node.start_position().column, 0);
-        assert_eq!(root_node.end_position().column, 10);
-    }
-    #[test]
-    fn test_markdown_identify_text() {
-        let _ = crate::test_utils::setup_tracing();
-        let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_md::language())
-            .expect("Error loading Rust grammar");
-        let source_code = r###"""# Heading
-        Some text with a [https://github.com/](Github)
-        """###;
-        let tree = parser.parse(source_code, None).unwrap();
-        let root_node = tree.root_node();
-
-        println!("{:?}", root_node);
-        println!("{:?}", root_node.to_sexp());
-        let mut cursor = root_node.walk();
-        for i in root_node.children(&mut cursor) {
-            println!("{:?}", i);
-        }
-        assert_eq!(root_node.kind(), "document");
-        assert_eq!(root_node.start_position().column, 0);
-        assert_eq!(root_node.end_position().column, 10);
-    }
+    //     println!("{:?}", root_node);
+    //     println!("{:?}", root_node.to_sexp());
+    //     let mut cursor = root_node.walk();
+    //     for i in root_node.children(&mut cursor) {
+    //         println!("{:?}", i);
+    //     }
+    //     assert_eq!(root_node.kind(), "document");
+    //     assert_eq!(root_node.start_position().column, 0);
+    //     assert_eq!(root_node.end_position().column, 10);
+    // }
 }

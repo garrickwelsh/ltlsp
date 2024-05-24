@@ -18,45 +18,45 @@ pub(crate) enum LanguageToolInitialisation {
     Container(_ContainerType, Child),
 }
 
-pub(crate) struct LanguageToolRunnerRemote<'a> {
-    pub(crate) server: &'a str,
+pub(crate) struct LanguageToolRunnerRemote {
+    pub(crate) server: String,
     pub(crate) port: u16,
-    pub(crate) language: &'a str,
+    pub(crate) language: String,
 }
 
-pub(crate) struct LanguageToolRunnerLocal<'a> {
+pub(crate) struct LanguageToolRunnerLocal {
     pub(crate) port: u16,
-    pub(crate) language: &'a str,
+    pub(crate) language: String,
     pub(crate) initialisation: LanguageToolInitialisation,
 }
 
-pub(crate) trait LanguageToolRunner<'a> {
-    fn server(&self) -> &'a str;
+pub(crate) trait LanguageToolRunner {
+    fn server(&self) -> &str;
     fn port(&self) -> u16;
-    fn language(&self) -> &'a str;
-    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a>;
+    fn language(&self) -> &str;
+    fn new_request(&self) -> impl LanguageToolRequestBuilder;
 }
 
-impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerRemote<'a> {
-    fn server(&self) -> &'a str {
-        self.server
+impl LanguageToolRunner for LanguageToolRunnerRemote {
+    fn server(&self) -> &str {
+        &self.server
     }
 
     fn port(&self) -> u16 {
         self.port
     }
 
-    fn language(&self) -> &'a str {
-        self.language
+    fn language(&self) -> &str {
+        &self.language
     }
 
-    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
-        LanguageToolRequest::new(self.server, self.port, &self.language)
+    fn new_request(&self) -> impl LanguageToolRequestBuilder {
+        LanguageToolRequest::new(&self.server, self.port, &self.language)
     }
 }
 
-impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerLocal<'a> {
-    fn server(&self) -> &'a str {
+impl LanguageToolRunner for LanguageToolRunnerLocal {
+    fn server(&self) -> &str {
         "localhost"
     }
 
@@ -64,11 +64,11 @@ impl<'a> LanguageToolRunner<'a> for LanguageToolRunnerLocal<'a> {
         self.port
     }
 
-    fn language(&self) -> &'a str {
-        self.language
+    fn language(&self) -> &str {
+        &self.language
     }
 
-    fn new_request(&self) -> impl LanguageToolRequestBuilder<'a> {
+    fn new_request(&self) -> impl LanguageToolRequestBuilder {
         LanguageToolRequest::new(self.server(), self.port(), self.language())
     }
 }
@@ -90,36 +90,36 @@ async fn check_if_languagetool_up<'a>(server: &'a str, port: u16, language: &'a 
     res.is_ok()
 }
 
-impl<'a> LanguageToolRunnerRemote<'a> {
+impl LanguageToolRunnerRemote {
     /// Startup language tool if it's not already running.
     pub(crate) async fn initialise_language_tool(
-        server: &'a str,
+        server: &str,
         port: u16,
-        language: &'a str,
-    ) -> impl LanguageToolRunner<'a> {
+        language: &str,
+    ) -> impl LanguageToolRunner {
         if check_if_languagetool_up(server, port, language).await {
             info!("languagetool already running :)");
             return LanguageToolRunnerRemote {
-                server,
+                server: server.to_string(),
                 port,
-                language,
+                language: language.to_string(),
             };
         }
         todo!();
     }
 }
 
-impl<'a> LanguageToolRunnerLocal<'a> {
+impl<'a> LanguageToolRunnerLocal {
     /// Startup language tool if it's not already running.
     pub(crate) async fn initialise_language_tool(
         port: u16,
-        language: &'a str,
-    ) -> impl LanguageToolRunner<'a> {
+        language: &str,
+    ) -> impl LanguageToolRunner {
         if check_if_languagetool_up("localhost", port, language).await {
             info!("languagetool already running :)");
             return LanguageToolRunnerLocal {
                 port,
-                language,
+                language: language.to_string(),
                 initialisation: LanguageToolInitialisation::AlreadyRunning,
             };
         }
@@ -132,7 +132,7 @@ impl<'a> LanguageToolRunnerLocal<'a> {
                 info!("languagetool Was spawned :)");
                 return LanguageToolRunnerLocal {
                     port,
-                    language,
+                    language: language.to_string(),
                     initialisation: LanguageToolInitialisation::LocalExecutable(child),
                 };
             }
@@ -168,7 +168,7 @@ impl<'a> LanguageToolRunnerLocal<'a> {
                     info!("languagetool Was spawned : via {})", cmd);
                     return LanguageToolRunnerLocal {
                         port,
-                        language,
+                        language: language.to_string(),
                         initialisation: LanguageToolInitialisation::Container(
                             container_type,
                             child,
@@ -191,7 +191,7 @@ impl<'a> LanguageToolRunnerLocal<'a> {
     }
 }
 
-impl<'a> Drop for LanguageToolRunnerLocal<'a> {
+impl Drop for LanguageToolRunnerLocal {
     fn drop(&mut self) {
         match self.initialisation {
             LanguageToolInitialisation::LocalExecutable(_) => {

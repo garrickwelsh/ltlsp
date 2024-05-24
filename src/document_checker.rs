@@ -1,22 +1,30 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
+use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
 use lsp_types::{Diagnostic, Position};
 use serde::{Deserialize, Serialize};
 
-use crate::tree_sitter::{LanguageSitterParsers, LanguageSitterResult, LanguageSitters};
+use crate::{
+    languagetool::{
+        manage_service::{LanguageToolInitialisation, LanguageToolRunner, LanguageToolRunnerLocal},
+        LanguageToolResult,
+    },
+    tree_sitter::{LanguageSitterParsers, LanguageSitterResult, LanguageSitters},
+};
 
-pub(crate) trait DocumentLanguageToolCheck<'a> {
-    fn parse_str(
-        &'a mut self,
+pub(crate) trait DocumentLanguageToolCheck {
+    async fn parse_str(
+        &mut self,
         language: &str,
         document_uri: &str,
         document_version: i32,
         document_text: &str,
-    ) -> anyhow::Result<Option<&'a DocumentLanguageToolCheckResult>>;
+    ) -> anyhow::Result<Option<&DocumentLanguageToolCheckResult>>;
 }
 
 pub(crate) struct DocumentLanguageToolChecker {
     language_sitter: LanguageSitters,
+    language_tool: LanguageToolRunnerLocal,
 
     // TODO: Store results for quick actions.
     documents: HashMap<String, DocumentLanguageToolCheckResult>,
@@ -26,80 +34,85 @@ pub(crate) struct DocumentLanguageToolCheckResult {
     language: String,
     document_uri: String,
     document_version: i32,
-    // TODO: Diagnostic with actions.
-    diagnostics: Vec<DocumentLanguageToolCheckResultDiagnostic>,
+    diagnostics: Vec<DocumentLanguageToolCheckChunkResult>,
 }
 
-pub(crate) struct DocumentLanguageToolCheckResultDiagnostic {
-    // TODO: Diagnostic information plus suggested actions/fixes.
+pub(crate) struct DocumentLanguageToolCheckChunkResult {
     start: Position,
     end: Position,
     code: String,
-    code_description: String,
-    message: String,
-    data: Vec<DocumentLanguageToolCheckResultDiagnosticFix>,
+    diagnostics: Vec<LanguageToolResult>,
 }
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct DocumentLanguageToolCheckResultDiagnosticFix {}
 
 impl DocumentLanguageToolChecker {}
 
-impl<'a> DocumentLanguageToolCheck<'a> for DocumentLanguageToolChecker {
-    fn parse_str(
-        &'a mut self,
+impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
+    async fn parse_str(
+        &mut self,
         language: &str,
         document_uri: &str,
         document_version: i32,
         document_text: &str,
-    ) -> anyhow::Result<Option<&'a DocumentLanguageToolCheckResult>> {
+    ) -> anyhow::Result<Option<&DocumentLanguageToolCheckResult>> {
         if self.documents.contains_key(document_uri)
             && self.documents[document_uri].document_version > document_version
         {
             return Ok(None);
         }
-        let x = self.language_sitter.parse_str(language, document_text)?;
-        self.documents.insert(
-            document_uri.to_string(),
-            DocumentLanguageToolCheckResult {
-                language: language.to_string(),
-                document_uri: document_uri.to_string(),
-                document_version,
-                diagnostics: x
-                    .into_iter()
-                    .map(|lsr| lsr.into())
-                    .collect::<Vec<DocumentLanguageToolCheckResultDiagnostic>>(),
-            },
-        );
+        let chunks = self.language_sitter.parse_str(language, document_text)?;
+        let dt_bytes = document_text.as_bytes();
+        let mut results = Vec::<LanguageToolResult>::new();
+        let mut request = self.language_tool.new_request();
+        let mut lastoffset: i32 = 0;
+        for chunk in chunks {
+            if chunk.start_pos > lastoffset + 1 {
+                request.add_markup(std::str::from_utf8(
+                    dt_bytes
+                        .get(Range::<usize> {
+                            start: i32::try_into(lastoffset)?,
+                            end: i32::try_into(chunk.start_pos - 1)?,
+                        })
+                        .expect("Unable to get value"),
+                )?);
+            }
+            request.add_text(std::str::from_utf8(
+                dt_bytes
+                    .get(Range::<usize> {
+                        start: i32::try_into(chunk.start_pos)?,
+                        end: i32::try_into(chunk.end_pos)?,
+                    })
+                    .expect("Unable to get value"),
+            )?);
+            results.push(request.execute_request().await?);
+        }
+        // self.documents.insert(
+        //     document_uri.to_string(),
+        //     DocumentLanguageToolCheckResult {
+        //         language: language.to_string(),
+        //         document_uri: document_uri.to_string(),
+        //         document_version,
+        //         diagnostics: results
+        //             .into_iter()
+        //             .map(|ltr| Into::<Vec<Diagnostic>>::into(ltr))
+        //             .flatten()
+        //             .collect(),
+        //     },
+        // );
         Ok(Some(&self.documents[document_uri]))
     }
 }
 
-impl From<LanguageSitterResult> for DocumentLanguageToolCheckResultDiagnostic {
-    fn from(value: LanguageSitterResult) -> Self {
-        Self {
-            start: lsp_types::Position::new(value.start_row, value.end_row),
-            end: todo!(),
-            code: todo!(),
-            code_description: todo!(),
-            message: todo!(),
-            data: todo!(),
+impl From<LanguageToolResult> for Vec<DocumentLanguageToolCheckChunkResult> {
+    fn from(value: LanguageToolResult) -> Self {
+        let mut retval = Vec::<DocumentLanguageToolCheckChunkResult>::new();
+        for diagnostic in value.matches {
+            retval.push(DocumentLanguageToolCheckChunkResult {
+                start: todo!(),
+                end: todo!(),
+                code: todo!(),
+                diagnostics: todo!(),
+            });
         }
-    }
-}
-
-impl From<DocumentLanguageToolCheckResultDiagnostic> for Diagnostic {
-    fn from(value: DocumentLanguageToolCheckResultDiagnostic) -> Self {
-        Self {
-            range: lsp_types::Range::new(value.start, value.end),
-            severity: Some(lsp_types::DiagnosticSeverity::HINT),
-            code: Some(lsp_types::NumberOrString::String(value.code.clone())),
-            code_description: None,
-            source: Some("Language tool".to_string()),
-            message: value.code_description.clone(),
-            related_information: None,
-            tags: None,
-            data: None, // TODO: Send data to lsp_client
-        }
+        retval
     }
 }

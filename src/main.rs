@@ -1,4 +1,5 @@
 // #![allow(clippy::print_stderr)]
+#![feature(async_fn_traits)]
 
 use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::PublishDiagnostics;
