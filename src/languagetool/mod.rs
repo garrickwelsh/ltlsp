@@ -87,12 +87,12 @@ pub(crate) struct LanguageToolResultMatchContext {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LanguageToolResultMatchRule {
-    id: String,
-    sub_id: Option<String>,
-    description: String,
-    urls: Option<Vec<LanguageToolResultListItem>>,
-    issue_type: String,
-    category: LanguageToolResultMatchRuleCategory,
+    pub(crate) id: String,
+    pub(crate) sub_id: Option<String>,
+    pub(crate) description: String,
+    pub(crate) urls: Option<Vec<LanguageToolResultListItem>>,
+    pub(crate) issue_type: String,
+    pub(crate) category: LanguageToolResultMatchRuleCategory,
 }
 
 #[derive(Debug, Deserialize)]

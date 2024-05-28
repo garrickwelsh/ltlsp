@@ -18,6 +18,7 @@ use lsp_types::{InitializeParams, ServerCapabilities};
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
@@ -91,6 +92,7 @@ async fn main_loop(
             Message::Notification(not) => {
                 info!("got notification: {not:?}");
                 if not.method == "textDocument/didOpen" || not.method == "textDocument/didChange" {
+                    let mut diagnostics = Vec::<Diagnostic>::new();
                     // Proof of Concept: Send back an error.
                     if let serde_json::Value::Object(map) = not.params {
                         if let serde_json::Value::Object(document_map) = map["textDocument"].clone()
@@ -108,15 +110,20 @@ async fn main_loop(
                                         .as_str()
                                         .expect("Expected document text"),
                                 )
-                                .await;
+                                .await?;
                             info!("Document parsed {:?}", document_parsed);
                             info!("Document text is: {}", document_map["text"]);
                             info!("File uri is: {}", document_map["uri"]);
+                            let Some(document_parsed) = document_parsed else {
+                                continue;
+                            };
+                            for i in &document_parsed.diagnostics {
+                                diagnostics.push(i.into());
+                            }
                         }
                     }
 
                     // Send a test notification diagnostic.
-                    let mut diagnostics = Vec::<Diagnostic>::new();
                     if version == 0 {
                         let diagnostic = Diagnostic {
                             range: Range::new(

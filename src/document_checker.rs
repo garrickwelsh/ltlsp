@@ -1,7 +1,7 @@
-use std::{collections::HashMap, ops::Range};
+use std::{any::Any, collections::HashMap, ops::Range};
 
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
-use lsp_types::{Diagnostic, Position};
+use lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, Instrument};
 
@@ -33,10 +33,10 @@ pub(crate) struct DocumentLanguageToolChecker {
 
 #[derive(Debug)]
 pub(crate) struct DocumentLanguageToolCheckResult {
-    language: String,
-    document_uri: String,
-    document_version: i32,
-    diagnostics: Vec<DocumentLanguageToolCheckChunkResult>,
+    pub(crate) language: String,
+    pub(crate) document_uri: String,
+    pub(crate) document_version: i32,
+    pub(crate) diagnostics: Vec<DocumentLanguageToolCheckChunkResult>,
 }
 
 #[derive(Debug)]
@@ -44,7 +44,8 @@ pub(crate) struct DocumentLanguageToolCheckChunkResult {
     start: Position,
     end: Position,
     code: String,
-    diagnostics: Vec<LanguageToolResult>,
+    message: String,
+    short_message: String,
 }
 
 impl DocumentLanguageToolChecker {
@@ -144,7 +145,6 @@ impl LanguageToolResultMatch {
         &self,
         document_text: &str,
     ) -> anyhow::Result<DocumentLanguageToolCheckChunkResult> {
-        error!("Not yet implemented");
         info!("{:?}", self);
         let li = line_index::LineIndex::new(document_text);
         let start = li.line_col(line_index::TextSize::new(self.offset as u32));
@@ -160,9 +160,26 @@ impl LanguageToolResultMatch {
                 line: end.line,
                 character: end.col,
             },
-            code: "TODO".to_string(),
-            diagnostics: Vec::<LanguageToolResult>::new(),
+            code: self.rule.id.to_string(),
+            message: self.message.to_string(),
+            short_message: self.short_message.to_string(),
         })
+    }
+}
+
+impl From<&DocumentLanguageToolCheckChunkResult> for Diagnostic {
+    fn from(value: &DocumentLanguageToolCheckChunkResult) -> Self {
+        Self {
+            range: lsp_types::Range::new(value.start, value.end),
+            severity: Some(DiagnosticSeverity::INFORMATION),
+            code: Some(lsp_types::NumberOrString::String(value.code.to_string())),
+            code_description: None,
+            source: Some("Ltlsp: LanguageTool".to_string()),
+            message: value.message.to_string(),
+            related_information: None,
+            tags: None,
+            data: None,
+        }
     }
 }
 
