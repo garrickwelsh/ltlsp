@@ -1,33 +1,30 @@
 // #![allow(clippy::print_stderr)]
 #![feature(async_fn_traits)]
 
-use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::request::CodeActionRequest;
-use lsp_types::request::CodeActionResolveRequest;
 use lsp_types::CodeAction;
 use lsp_types::CodeActionOrCommand;
 use lsp_types::CodeActionResponse;
 use lsp_types::Diagnostic;
 use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
-    request::GotoDefinition, GotoDefinitionResponse, InitializeParams, ServerCapabilities,
-};
-use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CodeDescription,
     CompletionOptions, OneOf, Position, Range, TextDocumentSyncCapability, TextDocumentSyncKind,
     WorkDoneProgressOptions,
 };
+use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
 use std::collections::HashMap;
-use std::io::Stdout;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
 use crate::document::Document;
+use crate::document_checker::DocumentLanguageToolCheck;
+use crate::document_checker::DocumentLanguageToolChecker;
 use crate::lsp_server::Notification;
 use crate::tree_sitter::LanguageSitters;
 
@@ -41,12 +38,13 @@ mod tree_sitter;
 #[cfg(test)]
 mod test_utils;
 
-fn main_loop(
+async fn main_loop(
     connection: Connection,
     params: serde_json::Value,
 ) -> Result<(), Box<dyn Error + Sync + Send>> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
     let _documents = HashMap::<String, Document>::new();
+    let mut document_checker = DocumentLanguageToolChecker::new().await;
     let mut version: i32 = 0;
     info!("starting example main loop");
     for msg in &connection.receiver {
@@ -97,6 +95,21 @@ fn main_loop(
                     if let serde_json::Value::Object(map) = not.params {
                         if let serde_json::Value::Object(document_map) = map["textDocument"].clone()
                         {
+                            let document_parsed = document_checker
+                                .parse_str(
+                                    "rust",
+                                    document_map["uri"].as_str().expect("Expected document uri"),
+                                    i32::try_from(
+                                        document_map["version"]
+                                            .as_i64()
+                                            .expect("Expected a version"),
+                                    )?,
+                                    document_map["text"]
+                                        .as_str()
+                                        .expect("Expected document text"),
+                                )
+                                .await;
+                            info!("Document parsed {:?}", document_parsed);
                             info!("Document text is: {}", document_map["text"]);
                             info!("File uri is: {}", document_map["uri"]);
                         }
@@ -222,7 +235,7 @@ async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             return Err(e.into());
         }
     };
-    main_loop(connection, initialization_params)?;
+    main_loop(connection, initialization_params).await?;
     io_threads.join()?;
     info!("Attempting to drop language tool to shutdown");
     drop(_lt);

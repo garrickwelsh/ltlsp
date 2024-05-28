@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Range};
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
 use lsp_types::{Diagnostic, Position};
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     languagetool::{
@@ -31,6 +31,7 @@ pub(crate) struct DocumentLanguageToolChecker {
     documents: HashMap<String, DocumentLanguageToolCheckResult>,
 }
 
+#[derive(Debug)]
 pub(crate) struct DocumentLanguageToolCheckResult {
     language: String,
     document_uri: String,
@@ -38,6 +39,7 @@ pub(crate) struct DocumentLanguageToolCheckResult {
     diagnostics: Vec<DocumentLanguageToolCheckChunkResult>,
 }
 
+#[derive(Debug)]
 pub(crate) struct DocumentLanguageToolCheckChunkResult {
     start: Position,
     end: Position,
@@ -46,7 +48,7 @@ pub(crate) struct DocumentLanguageToolCheckChunkResult {
 }
 
 impl DocumentLanguageToolChecker {
-    async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
         let cfg = crate::config::get_tree_sitter_config().unwrap();
         let language_sitter = LanguageSitters::new(&cfg.languages).unwrap();
         let language_tool =
@@ -73,6 +75,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
             return Ok(None);
         }
         info!("Start document checker");
+        self.language_sitter.initialise(language)?;
         let chunks = self.language_sitter.parse_str(language, document_text)?;
         info!("Parse the document");
         info!("Text parsed found {} comments", chunks.len());
@@ -80,6 +83,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         let mut request = self.language_tool.new_request();
         let mut lastoffset: i32 = 0;
         for chunk in chunks {
+            info!("chunk: '{:?}", chunk);
             if chunk.start_pos > lastoffset + 1 {
                 let mark_up = std::str::from_utf8(
                     dt_bytes
@@ -105,7 +109,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
             lastoffset = chunk.end_pos;
         }
         let length: i32 = i32::try_from(dt_bytes.len())?;
-        if lastoffset < length {
+        if lastoffset < length - 1 {
             let mark_up = std::str::from_utf8(
                 dt_bytes
                     .get(Range::<usize> {
@@ -133,6 +137,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
 
 impl From<LanguageToolResultMatch> for DocumentLanguageToolCheckChunkResult {
     fn from(value: LanguageToolResultMatch) -> Self {
+        error!("Not yet implemented");
         DocumentLanguageToolCheckChunkResult {
             start: todo!(),
             end: todo!(),

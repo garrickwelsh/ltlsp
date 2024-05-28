@@ -136,6 +136,7 @@ impl LanguageSitterUninitialised {
             &self.language_library_name,
             &self.language_library_search_path,
         )?;
+        info!("Language loaded for {}", self.language_name);
         let language_sitter = LanguageSitterInitialised {
             language_name: self.language_name.clone(),
             language_library_name: self.language_library_name.clone(),
@@ -161,6 +162,7 @@ impl LanguageSitterParsers for LanguageSitters {
     fn initialise(&mut self, language: &str) -> Result<()> {
         let language_sitter = self.language_parsers_initialised.get(language);
         if language_sitter.is_none() {
+            info!("{:?}", self.language_parsers_uninitialised.keys());
             let uninitialised = self.language_parsers_uninitialised.get(language);
             if uninitialised.is_none() {
                 return Result::Err(anyhow::anyhow!(
@@ -182,6 +184,7 @@ impl LanguageSitterParsers for LanguageSitters {
                 language
             ));
         };
+        info!("Parsing language text");
         language_sitter.parse_str(s)
     }
 }
@@ -204,11 +207,14 @@ impl LanguageSitterParser for LanguageSitterInitialised {
 
         let mut query_cursor = ::tree_sitter::QueryCursor::new();
 
+        info!("{} nodes to query", self.nodes_to_query.len());
+
         for query in &self.nodes_to_query {
+            info!("Attempting to capture {:?}", query);
             query_cursor
                 .captures(query, root_node, sbytes)
                 .for_each(|c| {
-                    println!("Capture test: {:?}", c);
+                    info!("Capture test: {:?}", c);
                     c.0.captures.into_iter().for_each(|cap| {
                         sbytes.text(cap.node).for_each(|deep| {
                             let start_pos = cap.node.start_byte();
@@ -222,6 +228,7 @@ impl LanguageSitterParser for LanguageSitterInitialised {
                     });
                 });
         }
+        info!("{:?}", result);
         Ok(result)
     }
 }
