@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Range};
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
 use lsp_types::{Diagnostic, Position};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::{error, info, Instrument};
 
 use crate::{
     languagetool::{
@@ -128,22 +128,41 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                 language: language.to_string(),
                 document_uri: document_uri.to_string(),
                 document_version,
-                diagnostics: result.matches.into_iter().map(|ltr| ltr.into()).collect(),
+                diagnostics: result
+                    .matches
+                    .into_iter()
+                    .map(|ltr| ltr.into_language_tool_result(document_text).unwrap())
+                    .collect(),
             },
         );
         Ok(Some(&self.documents[document_uri]))
     }
 }
 
-impl From<LanguageToolResultMatch> for DocumentLanguageToolCheckChunkResult {
-    fn from(value: LanguageToolResultMatch) -> Self {
+impl LanguageToolResultMatch {
+    fn into_language_tool_result(
+        &self,
+        document_text: &str,
+    ) -> anyhow::Result<DocumentLanguageToolCheckChunkResult> {
         error!("Not yet implemented");
-        DocumentLanguageToolCheckChunkResult {
-            start: todo!(),
-            end: todo!(),
-            code: todo!(),
-            diagnostics: todo!(),
-        }
+        info!("{:?}", self);
+        let li = line_index::LineIndex::new(document_text);
+        let start = li.line_col(line_index::TextSize::new(self.offset as u32));
+        let end = li.line_col(line_index::TextSize::new(
+            (self.offset + self.length) as u32,
+        ));
+        Ok(DocumentLanguageToolCheckChunkResult {
+            start: Position {
+                line: start.line,
+                character: start.col,
+            },
+            end: Position {
+                line: end.line,
+                character: end.col,
+            },
+            code: "TODO".to_string(),
+            diagnostics: Vec::<LanguageToolResult>::new(),
+        })
     }
 }
 
