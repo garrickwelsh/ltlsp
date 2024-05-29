@@ -123,33 +123,33 @@ async fn main_loop(
                         }
                     }
 
-                    // Send a test notification diagnostic.
-                    if version == 0 {
-                        let diagnostic = Diagnostic {
-                            range: Range::new(
-                                Position {
-                                    line: 1,
-                                    character: 1,
-                                },
-                                Position {
-                                    line: 1,
-                                    character: 5,
-                                },
-                            ),
-                            // downgrade to hint if we're pointing at the macro
-                            severity: Some(lsp_types::DiagnosticSeverity::HINT),
-                            code: Some(lsp_types::NumberOrString::String(
-                                "An error for as an example".to_string(),
-                            )),
-                            code_description: None,
-                            source: Some("Language tool".to_string()),
-                            message: "Fix yee spelling".to_string(),
-                            related_information: None,
-                            tags: None,
-                            data: None, // Some(serde_json::json!({ "rendered": rd.rendered })),
-                        };
-                        diagnostics.push(diagnostic);
-                    }
+                    // // Send a test notification diagnostic.
+                    // if version == 0 {
+                    //     let diagnostic = Diagnostic {
+                    //         range: Range::new(
+                    //             Position {
+                    //                 line: 1,
+                    //                 character: 1,
+                    //             },
+                    //             Position {
+                    //                 line: 1,
+                    //                 character: 5,
+                    //             },
+                    //         ),
+                    //         // downgrade to hint if we're pointing at the macro
+                    //         severity: Some(lsp_types::DiagnosticSeverity::HINT),
+                    //         code: Some(lsp_types::NumberOrString::String(
+                    //             "An error for as an example".to_string(),
+                    //         )),
+                    //         code_description: None,
+                    //         source: Some("Language tool".to_string()),
+                    //         message: "Fix yee spelling".to_string(),
+                    //         related_information: None,
+                    //         tags: None,
+                    //         data: None, // Some(serde_json::json!({ "rendered": rd.rendered })),
+                    //     };
+                    //     diagnostics.push(diagnostic);
+                    // }
                     let diagnostic_params = PublishDiagnosticsParams::new(
                         lsp_types::Url::parse("file:///home/gaz/devel/ltlsp/test.ltlsp")?,
                         diagnostics,

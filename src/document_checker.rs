@@ -83,6 +83,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         let dt_bytes = document_text.as_bytes();
         let mut request = self.language_tool.new_request();
         let mut lastoffset: i32 = 0;
+        info!("document_text: '{:?}", document_text);
         for chunk in chunks {
             info!("chunk: '{:?}", chunk);
             if chunk.start_pos > lastoffset + 1 {
@@ -101,7 +102,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                 dt_bytes
                     .get(Range::<usize> {
                         start: i32::try_into(chunk.start_pos)?,
-                        end: i32::try_into(chunk.end_pos)?,
+                        end: i32::try_into(chunk.end_pos + 1)?,
                     })
                     .expect("Unable to get value"),
             )?;
@@ -115,7 +116,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                 dt_bytes
                     .get(Range::<usize> {
                         start: i32::try_into(lastoffset)?,
-                        end: usize::try_into(dt_bytes.len())?,
+                        end: usize::try_into(dt_bytes.len() + 1)?,
                     })
                     .expect("Unable to get value"),
             )?;

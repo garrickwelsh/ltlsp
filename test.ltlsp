@@ -1,5 +1,5 @@
-// This is sample language document to check spelling etc.
-// This activated through the following code in helix...
+// This advarke is sample language document to check spelling etc.
+// This activatedtion through the following code in helix...
 /*
 [language-server.ltlsp]
 command = "/home/gaz/devel/ltlsp/target/debug/ltlsp"
