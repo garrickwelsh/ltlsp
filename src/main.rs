@@ -1,6 +1,7 @@
 // #![allow(clippy::print_stderr)]
 #![feature(async_fn_traits)]
 
+use anyhow::anyhow;
 use anyhow::Context;
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::request::CodeActionRequest;
@@ -95,6 +96,7 @@ async fn main_loop(
                         if let serde_json::Value::Object(document_map) = map["textDocument"].clone()
                         {
                             if not.method == "textDocument/didOpen" {
+                                info!("Document opened");
                                 process_document(
                                     &connection,
                                     &mut document_checker,
@@ -105,18 +107,24 @@ async fn main_loop(
                                 )
                                 .await?;
                             } else if not.method == "textDocument/didChange" {
-                                if let serde_json::Value::Object(change_map) =
+                                info!("Document changed {map:?}");
+                                if let serde_json::Value::Array(change_map) =
                                     map["contentChanges"].clone()
                                 {
+                                    info!("process content changes, change_map {change_map:?}");
                                     process_document(
                                         &connection,
                                         &mut document_checker,
                                         &document_map,
-                                        change_map["text"]
+                                        change_map[0]
+                                            .as_object()
+                                            .context("Expected document uri")?["text"]
                                             .as_str()
-                                            .context("Expected document uri")?,
+                                            .context("Expected document text")?,
                                     )
                                     .await?;
+                                } else {
+                                    info!("No content changes");
                                 }
                             }
                         }
@@ -151,9 +159,6 @@ async fn process_document(
             document_text,
         )
         .await?;
-    info!("Document parsed {:?}", document_parsed);
-    info!("Document text is: {}", document_map["text"]);
-    info!("File uri is: {}", document_map["uri"]);
     let Some(document_parsed) = document_parsed else {
         return Ok(());
     };

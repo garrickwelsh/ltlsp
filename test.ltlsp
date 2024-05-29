@@ -1,5 +1,6 @@
-// This advark dsableddd is sample language document to check spelling etc.
-// This activatedtion through the following code in helix...
+// This advarked disable is sample language document to check spelling etc.
+// This activated action through the following code in helix...
+// Another line of text with speling errors.
 /*
 [language-server.ltlsp]
 command = "/home/gaz/devel/ltlsp/target/debug/ltlsp"
