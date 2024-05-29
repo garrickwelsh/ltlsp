@@ -1,19 +1,13 @@
 use std::collections::HashMap;
-use std::ops::AsyncFn;
 use std::path::PathBuf;
 
-use ::tree_sitter::Node;
 use ::tree_sitter::TextProvider;
-use ::tree_sitter::Tree;
 use ::tree_sitter::{Language, Parser};
 use anyhow::Context;
 use anyhow::Result;
-use serde::Deserialize;
 use tracing::info;
 
 use crate::config::*;
-use crate::languagetool::LanguageToolRequestBuilder;
-use crate::tree_sitter;
 
 #[cfg(unix)]
 const DYLIB_EXTENSION: &str = "so";
@@ -25,7 +19,8 @@ const DYLIB_EXTENSION: &str = "dll";
 const DYLIB_EXTENSION: &str = "wasm";
 
 pub(crate) fn get_language(
-    language_name: &str,
+    _language_name: &str,
+    language_fn_name: &str,
     language_library_name: &str,
     language_library_search_path: &Vec<PathBuf>,
 ) -> Result<Language> {
@@ -43,7 +38,7 @@ pub(crate) fn get_language(
         if lib_path_buf.exists() {
             let library = unsafe { Library::new(&lib_path_buf) }
                 .with_context(|| format!("Error opening dynamic library {:?}", lib_path_buf))?;
-            let language_fn_name = format!("tree_sitter_{}", language_name.replace('-', "_"));
+            // let language_fn_name = format!("tree_sitter_{}", language_name.replace('-', "_"));
             let language = unsafe {
                 let language_fn: Symbol<unsafe extern "C" fn() -> Language> = library
                     .get(language_fn_name.as_bytes())
@@ -86,6 +81,7 @@ pub(crate) struct LanguageSitters {
 #[derive(Debug)]
 pub(crate) struct LanguageSitterUninitialised {
     language_name: String,
+    language_fn_name: String,
     language_library_name: String,
     language_library_search_path: Vec<PathBuf>,
     nodes_to_check: Vec<String>,
@@ -123,6 +119,7 @@ impl LanguageSitterUninitialised {
     pub(crate) fn new(language: &str, language_config: &LanguageSitterConfigNode) -> Result<Self> {
         Ok(Self {
             language_name: language.to_string(),
+            language_fn_name: language_config.language_fn_name.to_string(),
             language_library_name: language_config.language_library_name.clone(),
             nodes_to_check: language_config.expressions.clone(),
             language_library_search_path: crate::config::prioritise_runtime_grammar_dirs()?,
@@ -133,6 +130,7 @@ impl LanguageSitterUninitialised {
         info!("LanguageSitterUninitialised: {:?}", self);
         let language = get_language(
             &self.language_name,
+            &self.language_fn_name,
             &self.language_library_name,
             &self.language_library_search_path,
         )?;

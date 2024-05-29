@@ -145,12 +145,20 @@ async fn process_document(
 ) -> anyhow::Result<()> {
     let mut diagnostics = Vec::<Diagnostic>::new();
     info!("Running document checker.");
+    let uri = document_map["uri"]
+        .as_str()
+        .context("Expected document uri")?;
+    let language = match document_checker.get_language(uri) {
+        Some(res) => res,
+        None => document_map["languageId"]
+            .as_str()
+            .context("Expected a language")?,
+    }
+    .to_string();
     let document_parsed = document_checker
         .parse_str(
-            "rust",
-            document_map["uri"]
-                .as_str()
-                .context("Expected document uri")?,
+            &language,
+            uri,
             i32::try_from(
                 document_map["version"]
                     .as_i64()
@@ -159,9 +167,11 @@ async fn process_document(
             document_text,
         )
         .await?;
+    // If None then a newer version has already been received. So do nothing (do not process).
     let Some(document_parsed) = document_parsed else {
         return Ok(());
     };
+
     for i in &document_parsed.diagnostics {
         diagnostics.push(i.into());
     }
@@ -181,6 +191,11 @@ async fn process_document(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
+    let result = main_inner().await;
+    info!("{:?}", result);
+    result
+}
+async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
     let log_file = OpenOptions::new()
         .write(true)
         .append(false)

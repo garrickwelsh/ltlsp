@@ -1,16 +1,12 @@
-use std::{any::Any, collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range};
 
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
 use lsp_types::{Diagnostic, DiagnosticSeverity, Position};
-use serde::{Deserialize, Serialize};
-use tracing::{error, info, Instrument};
+use tracing::info;
 
 use crate::{
-    languagetool::{
-        manage_service::{LanguageToolInitialisation, LanguageToolRunner, LanguageToolRunnerLocal},
-        LanguageToolResult,
-    },
-    tree_sitter::{LanguageSitterParsers, LanguageSitterResult, LanguageSitters},
+    languagetool::manage_service::{LanguageToolRunner, LanguageToolRunnerLocal},
+    tree_sitter::{LanguageSitterParsers, LanguageSitters},
 };
 
 pub(crate) trait DocumentLanguageToolCheck {
@@ -21,6 +17,8 @@ pub(crate) trait DocumentLanguageToolCheck {
         document_version: i32,
         document_text: &str,
     ) -> anyhow::Result<Option<&DocumentLanguageToolCheckResult>>;
+
+    fn get_language(&self, document_uri: &str) -> Option<&str>;
 }
 
 pub(crate) struct DocumentLanguageToolChecker {
@@ -138,6 +136,11 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
             },
         );
         Ok(Some(&self.documents[document_uri]))
+    }
+
+    fn get_language(&self, document_uri: &str) -> Option<&str> {
+        let doc = self.documents.get(document_uri)?;
+        Some(&doc.language)
     }
 }
 
