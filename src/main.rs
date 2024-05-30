@@ -18,6 +18,7 @@ use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
+use std::any::Any;
 use std::collections::HashMap;
 use std::{error::Error, fs::OpenOptions};
 
@@ -39,10 +40,8 @@ mod tree_sitter;
 #[cfg(test)]
 mod test_utils;
 
-async fn main_loop(
-    connection: Connection,
-    params: serde_json::Value,
-) -> Result<(), Box<dyn Error + Sync + Send>> {
+async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Result<()> {
+    // Result<(), Box<dyn Error + Sync + Send>> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
     let _documents = HashMap::<String, Document>::new();
     let mut document_checker = DocumentLanguageToolChecker::new().await;
@@ -56,31 +55,58 @@ async fn main_loop(
                 }
                 info!("got request: {req:?}");
 
+                let serde_json::Value::Object(map) = req.params.clone() else {
+                    return anyhow::Result::Err(anyhow::anyhow!("Unable to find map"));
+                };
                 // TODO When get a code need to response with a suggested fix. Code Action - Code below doesn't work.
                 match cast::<CodeActionRequest>(req) {
-                    Ok((id, _params)) => {
-                        info!("CodeActionRequest {id}");
-                        // let document_checker.get_actions(id);
-                        let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
-                        let action = CodeActionOrCommand::CodeAction(CodeAction {
-                            title: "Some title".to_string(),
-                            kind: Some(CodeActionKind::QUICKFIX),
-                            diagnostics: None,
-                            edit: None,
-                            command: None,
-                            is_preferred: None,
-                            disabled: None,
-                            data: None,
-                        });
-                        actions.push(action);
-                        let result = serde_json::to_value(&actions)?;
-                        let resp = Response {
-                            id,
-                            result: Some(result),
-                            error: None,
-                        };
-                        connection.sender.send(Message::Response(resp.clone()))?;
-                        info!("Sent code action response {:?}", resp);
+                    Ok((_id, code_action_params)) => {
+                        info!("{map:?}");
+                        let diagnostics = map
+                            .get("context")
+                            .context("context for code action doesn't exist as expected")?
+                            .as_object()
+                            .context("context was not an object")?
+                            .get("diagnostics")
+                            .context("diagnostics were unable to be found for code actions")?
+                            .as_array()
+                            .context("diagnostics were not an array")?;
+                        for i in diagnostics {
+                            let id = i
+                                .as_object()
+                                .context("Expected diagnostic to be an object")?
+                                .get("data")
+                                .context("Expected data field on code action")?
+                                .as_i64()
+                                .context("exected data from code action to be an i64")?;
+                            let code_action = document_checker.get_code_actions(
+                                code_action_params.text_document.uri.as_str(),
+                                id,
+                            )?;
+                            for action in code_action {
+                                let mut actions: CodeActionResponse =
+                                    Vec::<CodeActionOrCommand>::new();
+                                let action = CodeActionOrCommand::CodeAction(CodeAction {
+                                    title: action.value.to_string(),
+                                    kind: Some(CodeActionKind::QUICKFIX),
+                                    diagnostics: None,
+                                    edit: None,
+                                    command: None,
+                                    is_preferred: None,
+                                    disabled: None,
+                                    data: None,
+                                });
+                                actions.push(action);
+                                let result = serde_json::to_value(&actions)?;
+                                let resp = Response {
+                                    id: _id.clone(),
+                                    result: Some(result),
+                                    error: None,
+                                };
+                                connection.sender.send(Message::Response(resp.clone()))?;
+                                info!("Sent code action response {:?}", resp);
+                            }
+                        }
                         continue;
                     }
                     Err(err @ ExtractError::JsonError { .. }) => panic!("{err:?}"),
@@ -247,15 +273,16 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
             resolve_provider: None,
         })),
         // TODO: Completion provider needs to filled out to work...
-        completion_provider: Some(CompletionOptions {
-            resolve_provider: None,
-            trigger_characters: None,
-            all_commit_characters: None, // Trigger on whitespace?
-            work_done_progress_options: WorkDoneProgressOptions {
-                work_done_progress: None,
-            },
-            completion_item: None,
-        }),
+        completion_provider: None,
+        // completion_provider: Some(CompletionOptions {
+        //     resolve_provider: None,
+        //     trigger_characters: None,
+        //     all_commit_characters: None, // Trigger on whitespace?
+        //     work_done_progress_options: WorkDoneProgressOptions {
+        //         work_done_progress: None,
+        //     },
+        //     completion_item: None,
+        // }),
         ..Default::default()
     })
     .unwrap();

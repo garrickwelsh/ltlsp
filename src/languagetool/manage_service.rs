@@ -5,13 +5,14 @@ use tracing::{error, info};
 
 use super::{LanguageToolRequest, LanguageToolRequestBuilder};
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum _ContainerType {
     _PodMan,
     _Docker,
     _Incus,
 }
 
+#[derive(Debug)]
 pub(crate) enum LanguageToolInitialisation {
     AlreadyRunning,
     LocalExecutable(Child),
@@ -24,6 +25,7 @@ pub(crate) struct LanguageToolRunnerRemote {
     pub(crate) language: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct LanguageToolRunnerLocal {
     pub(crate) port: u16,
     pub(crate) language: String,

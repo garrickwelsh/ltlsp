@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use reqwest;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::tree_sitter::LanguageSitterResult;
 
@@ -135,11 +135,8 @@ impl<'a> LanguageToolRequestBuilder<'a> for LanguageToolRequest<'a> {
         let url = format!("http://{}:{}/v2/check", self.server, self.port);
         let client = reqwest::Client::new();
         let res = client.post(url).form(&map).send().await?;
-        // let result = res.text().await?;
-        // info!("{:?}", result);
-        // todo!();
         let result = res.json::<LanguageToolResult>().await?;
-        info!("{:?}", result);
+        debug!("{:?}", result);
         Ok(result)
     }
 }
