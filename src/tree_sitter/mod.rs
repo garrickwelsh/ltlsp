@@ -368,6 +368,7 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
             "rust",
             &LanguageSitterConfigNode {
                 language_library_name: "libtree-sitter-rust".to_string(),
+                language_fn_name: "tree_sitter_rust".to_string(),
                 file_extensions: ["rs".to_string(), "ltlsp".to_string()].to_vec(),
                 expressions: [
                     "(line_comment) @line".to_string(),

@@ -1,7 +1,8 @@
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range, sync::atomic::AtomicUsize};
 
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
-use lsp_types::{Diagnostic, DiagnosticSeverity, Position};
+use lsp_types::{CodeAction, Diagnostic, DiagnosticSeverity, Position};
+use serde::{Deserializer, Serialize};
 use tracing::info;
 
 use crate::{
@@ -19,6 +20,8 @@ pub(crate) trait DocumentLanguageToolCheck {
     ) -> anyhow::Result<Option<&DocumentLanguageToolCheckResult>>;
 
     fn get_language(&self, document_uri: &str) -> Option<&str>;
+
+    fn get_code_actions(&self, id: usize) -> &[DocumentLanguageToolCheckChunkResultCodeAction];
 }
 
 pub(crate) struct DocumentLanguageToolChecker {
@@ -39,11 +42,18 @@ pub(crate) struct DocumentLanguageToolCheckResult {
 
 #[derive(Debug)]
 pub(crate) struct DocumentLanguageToolCheckChunkResult {
+    id: usize,
     start: Position,
     end: Position,
     code: String,
     message: String,
     short_message: String,
+    code_actions: Vec<DocumentLanguageToolCheckChunkResultCodeAction>,
+}
+
+#[derive(Debug)]
+pub(crate) struct DocumentLanguageToolCheckChunkResultCodeAction {
+    todo: String,
 }
 
 impl DocumentLanguageToolChecker {
@@ -89,7 +99,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                     dt_bytes
                         .get(Range::<usize> {
                             start: i32::try_into(lastoffset)?,
-                            end: i32::try_into(chunk.start_pos - 1)?,
+                            end: i32::try_into(chunk.start_pos)?,
                         })
                         .expect("Unable to get value"),
                 )?;
@@ -114,7 +124,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                 dt_bytes
                     .get(Range::<usize> {
                         start: i32::try_into(lastoffset)?,
-                        end: usize::try_into(dt_bytes.len() + 1)?,
+                        end: usize::try_into(dt_bytes.len())?,
                     })
                     .expect("Unable to get value"),
             )?;
@@ -142,6 +152,11 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         let doc = self.documents.get(document_uri)?;
         Some(&doc.language)
     }
+
+    fn get_code_actions(&self, _id: usize) -> &[DocumentLanguageToolCheckChunkResultCodeAction] {
+        info!("Get code actions");
+        todo!()
+    }
 }
 
 impl LanguageToolResultMatch {
@@ -149,6 +164,9 @@ impl LanguageToolResultMatch {
         &self,
         document_text: &str,
     ) -> anyhow::Result<DocumentLanguageToolCheckChunkResult> {
+        static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
+        let id = ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Release);
+
         info!("{:?}", self);
         let li = line_index::LineIndex::new(document_text);
         let start = li.line_col(line_index::TextSize::new(self.offset as u32));
@@ -156,6 +174,7 @@ impl LanguageToolResultMatch {
             (self.offset + self.length) as u32,
         ));
         Ok(DocumentLanguageToolCheckChunkResult {
+            id,
             start: Position {
                 line: start.line,
                 character: start.col,
@@ -167,7 +186,32 @@ impl LanguageToolResultMatch {
             code: self.rule.id.to_string(),
             message: self.message.to_string(),
             short_message: self.short_message.to_string(),
+            code_actions: Vec::<DocumentLanguageToolCheckChunkResultCodeAction>::new(), //self.replacements.iter().map(|r| r.into()).collect(),
         })
+    }
+}
+
+impl From<&crate::languagetool::LanguageToolResultListItem>
+    for DocumentLanguageToolCheckChunkResultCodeAction
+{
+    fn from(value: &crate::languagetool::LanguageToolResultListItem) -> Self {
+        todo!();
+        Self { todo: todo!() }
+    }
+}
+
+impl From<&DocumentLanguageToolCheckChunkResultCodeAction> for CodeAction {
+    fn from(value: &DocumentLanguageToolCheckChunkResultCodeAction) -> Self {
+        Self {
+            title: todo!(),
+            kind: todo!(),
+            diagnostics: todo!(),
+            edit: todo!(),
+            command: todo!(),
+            is_preferred: todo!(),
+            disabled: todo!(),
+            data: todo!(),
+        }
     }
 }
 
@@ -182,7 +226,7 @@ impl From<&DocumentLanguageToolCheckChunkResult> for Diagnostic {
             message: value.message.to_string(),
             related_information: None,
             tags: None,
-            data: None,
+            data: None, //Some(serde_json::Value::Number(value.id.into())),
         }
     }
 }

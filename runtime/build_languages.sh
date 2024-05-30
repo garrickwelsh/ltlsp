@@ -10,8 +10,8 @@ function build_tree_sitter() {
   # tree-sitter generate
 
   if [ ! -d "$FOLDER" ]; then
-    git clone --depth 1 https://github.com/tree-sitter/tree-sitter-rust.git
-
+    echo git clone --depth 1 "$GRAMMAR"
+    git clone --depth 1 "$GRAMMAR"
     mkdir -p "$FOLDER"
     pushd "$FOLDER"
   else
@@ -33,6 +33,8 @@ mkdir -p ltlsp_grammars_build
 pushd ltlsp_grammars_build
 
 build_tree_sitter "tree-sitter-rust" "https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2" "libtree-sitter-rust.so"
+
+build_tree_sitter "tree-sitter-c-sharp" "https://github.com/tree-sitter/tree-sitter-c-sharp" "v0.21.2" "libtree-sitter-c_sharp.so"
 
 popd
 popd

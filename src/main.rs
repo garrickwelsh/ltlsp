@@ -1,7 +1,6 @@
 // #![allow(clippy::print_stderr)]
 #![feature(async_fn_traits)]
 
-use anyhow::anyhow;
 use anyhow::Context;
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::request::CodeActionRequest;
@@ -59,7 +58,9 @@ async fn main_loop(
 
                 // TODO When get a code need to response with a suggested fix. Code Action - Code below doesn't work.
                 match cast::<CodeActionRequest>(req) {
-                    Ok((_id, _params)) => {
+                    Ok((id, _params)) => {
+                        info!("CodeActionRequest {id}");
+                        // let document_checker.get_actions(id);
                         let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
                         let action = CodeActionOrCommand::CodeAction(CodeAction {
                             title: "Some title".to_string(),
@@ -74,7 +75,7 @@ async fn main_loop(
                         actions.push(action);
                         let result = serde_json::to_value(&actions)?;
                         let resp = Response {
-                            id: _id,
+                            id,
                             result: Some(result),
                             error: None,
                         };
