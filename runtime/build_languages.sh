@@ -16,7 +16,7 @@ function build_tree_sitter() {
     pushd "$FOLDER"
   else
     pushd "$FOLDER"
-    git fetch --all --prune
+    git fetch --all --prune --tags
   fi
 
   git checkout "$REF"
@@ -33,8 +33,7 @@ mkdir -p ltlsp_grammars_build
 pushd ltlsp_grammars_build
 
 build_tree_sitter "tree-sitter-rust" "https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2" "libtree-sitter-rust.so"
-
-build_tree_sitter "tree-sitter-c-sharp" "https://github.com/tree-sitter/tree-sitter-c-sharp" "v0.21.2" "libtree-sitter-c_sharp.so"
+build_tree_sitter "tree-sitter-c-sharp" "https://github.com/tree-sitter/tree-sitter-c-sharp" "v0.21.1" "libtree-sitter-c_sharp.so"
 
 popd
 popd

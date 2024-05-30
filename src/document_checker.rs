@@ -94,7 +94,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         info!("document_text: '{:?}", document_text);
         for chunk in chunks {
             info!("chunk: '{:?}", chunk);
-            if chunk.start_pos > lastoffset + 1 {
+            if chunk.start_pos > lastoffset {
                 let mark_up = std::str::from_utf8(
                     dt_bytes
                         .get(Range::<usize> {
@@ -110,7 +110,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                 dt_bytes
                     .get(Range::<usize> {
                         start: i32::try_into(chunk.start_pos)?,
-                        end: i32::try_into(chunk.end_pos + 1)?,
+                        end: i32::try_into(chunk.end_pos)?,
                     })
                     .expect("Unable to get value"),
             )?;

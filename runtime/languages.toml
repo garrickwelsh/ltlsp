@@ -14,7 +14,7 @@ language_library_name = "libtree-sitter-rust"
 file_extensions = [ "ltlsp" ]
 expressions = [ "(line_comment) @line", "(block_comment) @block" ]
 
-[languages.csharp]
+[languages.c-sharp]
 language_name = "c-sharp"
 language_fn_name = "tree_sitter_c_sharp"
 language_library_name = "libtree-sitter-c_sharp"

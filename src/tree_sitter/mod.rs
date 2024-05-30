@@ -5,7 +5,7 @@ use ::tree_sitter::TextProvider;
 use ::tree_sitter::{Language, Parser};
 use anyhow::Context;
 use anyhow::Result;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::config::*;
 
@@ -192,14 +192,20 @@ impl LanguageSitterParser for LanguageSitterInitialised {
         let mut parser = Parser::new();
         parser.set_language(self.language)?;
 
+        info!("LanguageSitterParser: parse_str called");
+
         let Some(tree) = parser.parse(s, None) else {
-            return anyhow::Result::Err(anyhow::anyhow!(
+            let err = anyhow::Result::Err(anyhow::anyhow!(
                 "Error parsing. \"{}\" tree sitter did not return a tree",
                 self.language_name
             ));
+            error!("{err:?}");
+            return err;
         };
 
+        info!("LanguageSitterParser: tree parsed");
         let root_node = tree.root_node();
+        info!("document nodes: {}", root_node.to_sexp());
         let mut sbytes = s.as_bytes();
         let mut result = Vec::<LanguageSitterResult>::new();
 
