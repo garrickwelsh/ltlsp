@@ -2,7 +2,7 @@
 #![feature(async_fn_traits)]
 
 use anyhow::Context;
-use lsp_types::notification::PublishDiagnostics;
+use lsp_server::ResponseError;
 use lsp_types::request::CodeActionRequest;
 use lsp_types::CodeAction;
 use lsp_types::CodeActionOrCommand;
@@ -12,25 +12,22 @@ use lsp_types::DocumentChanges;
 use lsp_types::OptionalVersionedTextDocumentIdentifier;
 use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
-    CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CodeDescription,
-    CompletionOptions, OneOf, Position, Range, TextDocumentSyncCapability, TextDocumentSyncKind,
-    WorkDoneProgressOptions,
+    CodeActionKind, CodeActionOptions, CodeActionProviderCapability, OneOf, Range,
+    TextDocumentSyncCapability, TextDocumentSyncKind, WorkDoneProgressOptions,
 };
 use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
-use tracing::instrument::WithSubscriber;
 
-use std::any::Any;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
-use crate::document::Document;
+pub(crate) use crate::document::Document;
 use crate::document_checker::DocumentLanguageToolCheck;
 use crate::document_checker::DocumentLanguageToolChecker;
-use crate::lsp_server::Notification;
 use crate::tree_sitter::LanguageSitters;
 
 mod config;
@@ -75,17 +72,27 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                             .as_array()
                             .context("diagnostics were not an array")?;
                         for i in diagnostics {
-                            let id = i
+                            let Some(diagnostic) = i
                                 .as_object()
-                                .context("Expected diagnostic to be an object")?
-                                .get("data")
-                                .context("Expected data field on code action")?
-                                .as_i64()
-                                .context("exected data from code action to be an i64")?;
-                            let diagnostic = document_checker.get_diagnostic(
-                                code_action_params.text_document.uri.as_str(),
-                                id,
-                            )?;
+                                .and_then(|j| j.get("data"))
+                                .and_then(|j| j.as_i64())
+                                .and_then(|id| {
+                                    document_checker.get_diagnostic(
+                                        code_action_params.text_document.uri.as_str(),
+                                        id,
+                                    )
+                                })
+                            else {
+                                info!("Did not much diagnostic ignore.");
+                                let resp = Response {
+                                    id: _id.clone(),
+                                    result: None,
+                                    error: Some(ResponseError { code: lsp_types::error_codes::REQUEST_FAILED as i32, message: "Request does not appear to have been meant for this server".to_string(), data: None }),
+                                };
+                                connection.sender.send(Message::Response(resp.clone()))?;
+                                continue;
+                            };
+
                             let code_actions = &diagnostic.code_actions;
                             info!("Code actions are: {:?}", code_actions);
                             let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
@@ -192,7 +199,6 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
 }
 
 async fn process_document(
-    // not: &Notification,
     connection: &Connection,
     document_checker: &mut DocumentLanguageToolChecker,
     document_map: &serde_json::Map<String, serde_json::Value>,
@@ -298,7 +304,7 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
             work_done_progress_options: WorkDoneProgressOptions {
                 work_done_progress: None,
             },
-            resolve_provider: None,
+            resolve_provider: Some(true),
         })),
         // TODO: Completion provider needs to filled out to work...
         completion_provider: None,

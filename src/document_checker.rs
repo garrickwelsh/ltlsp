@@ -30,7 +30,7 @@ pub(crate) trait DocumentLanguageToolCheck {
         &self,
         document_uri: &str,
         id: i64,
-    ) -> anyhow::Result<&DocumentLanguageToolCheckChunkResult>;
+    ) -> Option<&DocumentLanguageToolCheckChunkResult>;
 }
 
 #[derive(Debug)]
@@ -169,19 +169,11 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         &self,
         document_uri: &str,
         id: i64,
-    ) -> anyhow::Result<&DocumentLanguageToolCheckChunkResult> {
+    ) -> Option<&DocumentLanguageToolCheckChunkResult> {
         info!("Get diagnostic");
-        let document = self
-            .documents
-            .get(document_uri)
-            .context("Unable to find the document")?;
-        let diagnostic = document
-            .diagnostics
-            .iter()
-            .filter(|d| d.id == id)
-            .last()
-            .context("diagnostic not found")?;
-        Ok(diagnostic)
+        let document = self.documents.get(document_uri)?;
+        let diagnostic = document.diagnostics.iter().filter(|d| d.id == id).last()?;
+        Some(diagnostic)
     }
 }
 
