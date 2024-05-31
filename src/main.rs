@@ -79,13 +79,13 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                                 .context("Expected data field on code action")?
                                 .as_i64()
                                 .context("exected data from code action to be an i64")?;
-                            let code_action = document_checker.get_code_actions(
+                            let code_actions = document_checker.get_code_actions(
                                 code_action_params.text_document.uri.as_str(),
                                 id,
                             )?;
-                            for action in code_action {
-                                let mut actions: CodeActionResponse =
-                                    Vec::<CodeActionOrCommand>::new();
+                            info!("Code actions are: {:?}", code_actions);
+                            let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
+                            for action in code_actions {
                                 let action = CodeActionOrCommand::CodeAction(CodeAction {
                                     title: action.value.to_string(),
                                     kind: Some(CodeActionKind::QUICKFIX),
@@ -97,15 +97,15 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                                     data: None,
                                 });
                                 actions.push(action);
-                                let result = serde_json::to_value(&actions)?;
-                                let resp = Response {
-                                    id: _id.clone(),
-                                    result: Some(result),
-                                    error: None,
-                                };
-                                connection.sender.send(Message::Response(resp.clone()))?;
-                                info!("Sent code action response {:?}", resp);
                             }
+                            let result = serde_json::to_value(&actions)?;
+                            let resp = Response {
+                                id: _id.clone(),
+                                result: Some(result),
+                                error: None,
+                            };
+                            connection.sender.send(Message::Response(resp.clone()))?;
+                            info!("Sent code action response {:?}", resp);
                         }
                         continue;
                     }
