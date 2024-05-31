@@ -19,7 +19,6 @@ use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::{error::Error, fs::OpenOptions};
 
@@ -86,8 +85,10 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                                 info!("Did not much diagnostic ignore.");
                                 let resp = Response {
                                     id: _id.clone(),
-                                    result: None,
-                                    error: Some(ResponseError { code: lsp_types::error_codes::REQUEST_FAILED as i32, message: "Request does not appear to have been meant for this server".to_string(), data: None }),
+                                    result: Some(serde_json::to_value(
+                                        &Vec::<CodeActionOrCommand>::new(),
+                                    )?),
+                                    error: None, //Some(ResponseError { code: lsp_types::error_codes::REQUEST_FAILED as i32, message: "Request does not appear to have been meant for this server".to_string(), data: None })
                                 };
                                 connection.sender.send(Message::Response(resp.clone()))?;
                                 continue;
