@@ -34,6 +34,7 @@ pushd ltlsp_grammars_build
 
 build_tree_sitter "tree-sitter-rust" "https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2" "libtree-sitter-rust.so"
 build_tree_sitter "tree-sitter-c-sharp" "https://github.com/tree-sitter/tree-sitter-c-sharp" "v0.21.1" "libtree-sitter-c_sharp.so"
+build_tree_sitter "tree-sitter-go" "https://github.com/tree-sitter/tree-sitter-go" "v0.21.0" "libtree-sitter-go.so"
 
 popd
 popd

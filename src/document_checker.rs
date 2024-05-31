@@ -26,11 +26,11 @@ pub(crate) trait DocumentLanguageToolCheck {
 
     fn get_language(&self, document_uri: &str) -> Option<&str>;
 
-    fn get_code_actions(
+    fn get_diagnostic(
         &self,
         document_uri: &str,
         id: i64,
-    ) -> anyhow::Result<&[DocumentLanguageToolCheckChunkResultCodeAction]>;
+    ) -> anyhow::Result<&DocumentLanguageToolCheckChunkResult>;
 }
 
 #[derive(Debug)]
@@ -52,13 +52,13 @@ pub(crate) struct DocumentLanguageToolCheckResult {
 
 #[derive(Debug)]
 pub(crate) struct DocumentLanguageToolCheckChunkResult {
-    id: i64,
-    start: Position,
-    end: Position,
-    code: String,
-    message: String,
-    short_message: String,
-    code_actions: Vec<DocumentLanguageToolCheckChunkResultCodeAction>,
+    pub(crate) id: i64,
+    pub(crate) start: Position,
+    pub(crate) end: Position,
+    pub(crate) code: String,
+    pub(crate) message: String,
+    pub(crate) short_message: String,
+    pub(crate) code_actions: Vec<DocumentLanguageToolCheckChunkResultCodeAction>,
 }
 
 #[derive(Debug)]
@@ -165,12 +165,12 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         Some(&doc.language)
     }
 
-    fn get_code_actions(
+    fn get_diagnostic(
         &self,
         document_uri: &str,
         id: i64,
-    ) -> anyhow::Result<&[DocumentLanguageToolCheckChunkResultCodeAction]> {
-        info!("Get code actions");
+    ) -> anyhow::Result<&DocumentLanguageToolCheckChunkResult> {
+        info!("Get diagnostic");
         let document = self
             .documents
             .get(document_uri)
@@ -181,7 +181,7 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
             .filter(|d| d.id == id)
             .last()
             .context("diagnostic not found")?;
-        Ok(&diagnostic.code_actions)
+        Ok(diagnostic)
     }
 }
 

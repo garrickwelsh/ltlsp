@@ -8,6 +8,8 @@ use lsp_types::CodeAction;
 use lsp_types::CodeActionOrCommand;
 use lsp_types::CodeActionResponse;
 use lsp_types::Diagnostic;
+use lsp_types::DocumentChanges;
+use lsp_types::OptionalVersionedTextDocumentIdentifier;
 use lsp_types::PublishDiagnosticsParams;
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CodeDescription,
@@ -17,6 +19,7 @@ use lsp_types::{
 use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
+use tracing::instrument::WithSubscriber;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -79,18 +82,43 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                                 .context("Expected data field on code action")?
                                 .as_i64()
                                 .context("exected data from code action to be an i64")?;
-                            let code_actions = document_checker.get_code_actions(
+                            let diagnostic = document_checker.get_diagnostic(
                                 code_action_params.text_document.uri.as_str(),
                                 id,
                             )?;
+                            let code_actions = &diagnostic.code_actions;
                             info!("Code actions are: {:?}", code_actions);
                             let mut actions: CodeActionResponse = Vec::<CodeActionOrCommand>::new();
-                            for action in code_actions {
+                            for code_action in code_actions {
                                 let action = CodeActionOrCommand::CodeAction(CodeAction {
-                                    title: action.value.to_string(),
+                                    title: code_action.value.to_string(),
                                     kind: Some(CodeActionKind::QUICKFIX),
                                     diagnostics: None,
-                                    edit: None,
+                                    edit: Some(lsp_types::WorkspaceEdit {
+                                        changes: None,
+                                        change_annotations: None,
+                                        document_changes: Some(DocumentChanges::Edits(
+                                            [lsp_types::TextDocumentEdit {
+                                                text_document:
+                                                    OptionalVersionedTextDocumentIdentifier {
+                                                        uri: code_action_params
+                                                            .text_document
+                                                            .uri
+                                                            .clone(),
+                                                        version: None,
+                                                    },
+                                                edits: [OneOf::Left(lsp_types::TextEdit {
+                                                    range: Range {
+                                                        start: diagnostic.start,
+                                                        end: diagnostic.end,
+                                                    },
+                                                    new_text: code_action.value.to_string(),
+                                                })]
+                                                .to_vec(),
+                                            }]
+                                            .to_vec(),
+                                        )),
+                                    }),
                                     command: None,
                                     is_preferred: None,
                                     disabled: None,
