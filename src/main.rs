@@ -63,7 +63,7 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                         info!("{map:?}");
                         let diagnostics = map
                             .get("context")
-                            .context("context for code action doesn't exist as expected")?
+                            .context("Context for code action doesn't exist as expected. ")?
                             .as_object()
                             .context("context was not an object")?
                             .get("diagnostics")
@@ -305,7 +305,7 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
             work_done_progress_options: WorkDoneProgressOptions {
                 work_done_progress: None,
             },
-            resolve_provider: Some(true),
+            resolve_provider: Some(false),
         })),
         // TODO: Completion provider needs to filled out to work...
         completion_provider: None,

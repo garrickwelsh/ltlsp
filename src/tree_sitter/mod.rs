@@ -147,6 +147,7 @@ impl LanguageSitterUninitialised {
                 .collect(),
             language,
         };
+        info!("{self:?}");
 
         Ok(language_sitter)
     }

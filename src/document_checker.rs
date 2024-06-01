@@ -81,6 +81,8 @@ impl DocumentLanguageToolChecker {
     }
 }
 
+const PADDING: [u8; 4096] = [10; 4096];
+
 impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
     // #[tracing::instrument]
     async fn parse_str(
@@ -97,26 +99,30 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         }
         info!("Start document checker");
         self.language_sitter.initialise(language)?;
-        let chunks = self.language_sitter.parse_str(language, document_text)?;
+        let mut chunks = self.language_sitter.parse_str(language, document_text)?;
         info!("Parse the document");
         info!("Text parsed found {} comments", chunks.len());
         let dt_bytes = document_text.as_bytes();
         let mut request = self.language_tool.new_request();
         let mut lastoffset: i32 = 0;
         // info!("document_text: '{:?}", document_text);
+        chunks.sort_by(|a, b| a.start_pos.partial_cmp(&b.start_pos).unwrap());
         for chunk in chunks {
             // info!("chunk: '{:?}", chunk);
             if chunk.start_pos > lastoffset {
-                let mark_up = std::str::from_utf8(
-                    dt_bytes
-                        .get(Range::<usize> {
-                            start: i32::try_into(lastoffset)?,
-                            end: i32::try_into(chunk.start_pos)?,
-                        })
-                        .expect("Unable to get value"),
-                )?;
+                // let mark_up = std::str::from_utf8(
+                //     dt_bytes
+                //         .get(Range::<usize> {
+                //             start: i32::try_into(lastoffset)?,
+                //             end: i32::try_into(chunk.start_pos)?,
+                //         })
+                //         .expect("Unable to get value"),
+                // )?;
                 // info!("mark_up: {}", mark_up);
-                request.add_markup(mark_up);
+                // request.add_markup(mark_up);
+                let len = (chunk.start_pos - lastoffset) as usize;
+                let mark_up = std::str::from_utf8(&PADDING.as_slice()[0..len])?;
+                request.add_text(mark_up);
             }
             let text = std::str::from_utf8(
                 dt_bytes
@@ -126,24 +132,29 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
                     })
                     .expect("Unable to get value"),
             )?;
-            // info!("text: {}", text);
+            info!("text: {}", text);
             request.add_text(text);
             lastoffset = chunk.end_pos;
         }
         let length: i32 = i32::try_from(dt_bytes.len())?;
         if lastoffset < length - 1 {
-            let mark_up = std::str::from_utf8(
-                dt_bytes
-                    .get(Range::<usize> {
-                        start: i32::try_into(lastoffset + 1)?,
-                        end: usize::try_into(dt_bytes.len())?,
-                    })
-                    .expect("Unable to get value"),
-            )?;
+            // let mark_up = std::str::from_utf8(
+            //     dt_bytes
+            //         .get(Range::<usize> {
+            //             start: i32::try_into(lastoffset + 1)?,
+            //             end: usize::try_into(dt_bytes.len())?,
+            //         })
+            //         .expect("Unable to get value"),
+            // )?;
             // info!("mark_up: {}", mark_up);
-            request.add_markup(mark_up);
+            // request.add_markup(mark_up);
+            let len = (dt_bytes.len() - lastoffset as usize - 1) as usize;
+            let mark_up = std::str::from_utf8(&PADDING.as_slice()[0..len])?;
+            request.add_text(mark_up);
         }
+        info!("Begin language server request");
         let result = request.execute_request().await?;
+        info!("End language server request");
         self.documents.insert(
             document_uri.to_string(),
             DocumentLanguageToolCheckResult {

@@ -13,3 +13,8 @@ scope = "source.ltlsp"
 roots = []
 language-servers = [ "ltlsp" ]
 */
+fn main() -> Result<()> {
+	let brainy = "A brain string. Why is there a string, and it's working properly here.";
+
+	format!("Is another string not working properly");
+}
