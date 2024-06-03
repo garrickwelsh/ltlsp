@@ -22,6 +22,7 @@ function build_tree_sitter() {
 
   git checkout "$REF"
 
+  # If the makefile doesn't exist generate it (tree-sitter-cli and node are required)
   if [ ! -f "Makefile" ]; then
     tree-sitter generate grammar.js
   fi
