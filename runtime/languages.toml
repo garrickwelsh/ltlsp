@@ -19,7 +19,6 @@ language_name = "c-sharp"
 language_fn_name = "tree_sitter_c_sharp"
 language_library_name = "libtree-sitter-c_sharp"
 file_extensions = [ "cs" ]
-# expressions = [ "(line_comment) @line", "(block_comment) @block" ]
 expressions = [ "(comment) @comment" ]
 
 [languages.go]
@@ -27,5 +26,11 @@ language_name = "go"
 language_fn_name = "tree_sitter_go"
 language_library_name = "libtree-sitter-go"
 file_extensions = [ "go" ]
-# expressions = [ "(line_comment) @line", "(block_comment) @block" ]
 expressions = [ "(comment) @comment" ]
+
+[languages.git-commit]
+language_name = "git-commit"
+language_fn_name = "tree_sitter_git_commit"
+language_library_name = "libtree-sitter-git_commit"
+file_extensions = [ "COMMIT_EDITMSG" ]
+expressions = [ "(subject) @subject", "(message) @message" ]
