@@ -2,7 +2,6 @@
 #![feature(async_fn_traits)]
 
 use anyhow::Context;
-use lsp_server::ResponseError;
 use lsp_types::request::CodeActionRequest;
 use lsp_types::CodeAction;
 use lsp_types::CodeActionOrCommand;
@@ -19,18 +18,15 @@ use lsp_types::{InitializeParams, ServerCapabilities};
 
 use lsp_server::{Connection, ExtractError, Message, Request, RequestId, Response};
 
-use std::collections::HashMap;
 use std::{error::Error, fs::OpenOptions};
 
 use tracing::info;
 
-pub(crate) use crate::document::Document;
 use crate::document_checker::DocumentLanguageToolCheck;
 use crate::document_checker::DocumentLanguageToolChecker;
 use crate::tree_sitter::LanguageSitters;
 
 mod config;
-mod document;
 mod document_checker;
 mod languagetool;
 mod lsp_server;
@@ -40,9 +36,7 @@ mod tree_sitter;
 mod test_utils;
 
 async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Result<()> {
-    // Result<(), Box<dyn Error + Sync + Send>> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
-    let _documents = HashMap::<String, Document>::new();
     let mut document_checker = DocumentLanguageToolChecker::new().await;
     info!("starting example main loop");
     for msg in &connection.receiver {
@@ -57,7 +51,7 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                 let serde_json::Value::Object(map) = req.params.clone() else {
                     return anyhow::Result::Err(anyhow::anyhow!("Unable to find map"));
                 };
-                // TODO When get a code need to response with a suggested fix. Code Action - Code below doesn't work.
+
                 match cast::<CodeActionRequest>(req) {
                     Ok((_id, code_action_params)) => {
                         info!("{map:?}");
@@ -269,29 +263,28 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
         .with_line_number(true)
         .with_target(true)
         .with_writer(log_file)
-        // .with_writer(std::io::stdout)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
     info!("Hello, world!");
     let _config = config::prioritise_config_dirs()?;
-    info!("Config dirs: {:?}", _config);
+    info!("Config directories: {:?}.", _config);
     let _config = config::get_tree_sitter_config()?;
-    info!("Config is: {:?}", _config);
+    info!("Config is: {:?}.", _config);
     let _config = config::prioritise_runtime_grammar_dirs()?;
-    info!("Runtime dirs: {:?}", _config);
+    info!("Runtime directories: {:?}.", _config);
 
     let cfg = config::get_tree_sitter_config()?;
     let _language_sitter = LanguageSitters::new(&cfg.languages)?;
 
-    info!("started language tool server");
-    // Start language tool
+    // Start LanguageTool
     let _lt = languagetool::manage_service::LanguageToolRunnerLocal::initialise_language_tool(
         8081, "en-AU",
     )
     .await;
+    info!("Started LanguageTool server.");
 
-    info!("starting generic LSP server");
+    info!("Starting generic LSP server.");
 
     // Create the transport. Includes the stdio (stdin and stdout) versions but this could
     // also be implemented to use sockets or HTTP.
@@ -307,17 +300,7 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
             },
             resolve_provider: Some(false),
         })),
-        // TODO: Completion provider needs to filled out to work...
         completion_provider: None,
-        // completion_provider: Some(CompletionOptions {
-        //     resolve_provider: None,
-        //     trigger_characters: None,
-        //     all_commit_characters: None, // Trigger on whitespace?
-        //     work_done_progress_options: WorkDoneProgressOptions {
-        //         work_done_progress: None,
-        //     },
-        //     completion_item: None,
-        // }),
         ..Default::default()
     })
     .unwrap();
@@ -332,11 +315,11 @@ async fn main_inner() -> Result<(), Box<dyn Error + Sync + Send>> {
     };
     main_loop(connection, initialization_params).await?;
     io_threads.join()?;
-    info!("Attempting to drop language tool to shutdown");
+    info!("Attempting to drop LanguageTool to shut down gracefully.");
     drop(_lt);
 
     // Shut down gracefully.
-    info!("shutting down server");
+    info!("Shutting down server");
     Ok(())
 }
 

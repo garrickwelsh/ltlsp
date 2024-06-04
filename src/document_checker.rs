@@ -1,13 +1,7 @@
-use std::{
-    collections::HashMap,
-    ops::Range,
-    sync::atomic::{AtomicI32, AtomicI64},
-};
+use std::{collections::HashMap, ops::Range, sync::atomic::AtomicI64};
 
 use crate::languagetool::{LanguageToolRequestBuilder, LanguageToolResultMatch};
-use anyhow::Context;
 use lsp_types::{CodeAction, Diagnostic, DiagnosticSeverity, Position};
-use serde::{Deserializer, Serialize};
 use tracing::{debug, info};
 
 use crate::{
@@ -38,7 +32,6 @@ pub(crate) struct DocumentLanguageToolChecker {
     language_sitter: LanguageSitters,
     language_tool: LanguageToolRunnerLocal,
 
-    // TODO: Store results for quick actions.
     documents: HashMap<String, DocumentLanguageToolCheckResult>,
 }
 
@@ -81,7 +74,29 @@ impl DocumentLanguageToolChecker {
     }
 }
 
-const PADDING: [u8; 4096] = [10; 4096];
+const PADDING_LENGTH: usize = 4096;
+const PADDING: [u8; PADDING_LENGTH] = [10; PADDING_LENGTH];
+
+impl DocumentLanguageToolChecker {
+    fn add_empty_text<'a>(
+        request: &mut impl LanguageToolRequestBuilder<'a>,
+        length: usize,
+    ) -> anyhow::Result<()> {
+        let iterations = length / PADDING_LENGTH;
+        let mut i = 0;
+        while i <= iterations {
+            let substr_length = if i < iterations {
+                PADDING_LENGTH
+            } else {
+                length % PADDING_LENGTH
+            };
+            let mark_up = std::str::from_utf8(&PADDING.as_slice()[0..substr_length])?;
+            request.add_text(mark_up);
+            i += 1;
+        }
+        Ok(())
+    }
+}
 
 impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
     // #[tracing::instrument]
@@ -105,24 +120,13 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         let dt_bytes = document_text.as_bytes();
         let mut request = self.language_tool.new_request();
         let mut lastoffset: i32 = 0;
-        // info!("document_text: '{:?}", document_text);
+        info!("document_text: '{:?}", document_text);
         chunks.sort_by(|a, b| a.start_pos.partial_cmp(&b.start_pos).unwrap());
         for chunk in chunks {
-            // info!("chunk: '{:?}", chunk);
+            debug!("chunk: '{:?}", chunk);
             if chunk.start_pos > lastoffset {
-                // let mark_up = std::str::from_utf8(
-                //     dt_bytes
-                //         .get(Range::<usize> {
-                //             start: i32::try_into(lastoffset)?,
-                //             end: i32::try_into(chunk.start_pos)?,
-                //         })
-                //         .expect("Unable to get value"),
-                // )?;
-                // info!("mark_up: {}", mark_up);
-                // request.add_markup(mark_up);
                 let len = (chunk.start_pos - lastoffset) as usize;
-                let mark_up = std::str::from_utf8(&PADDING.as_slice()[0..len])?;
-                request.add_text(mark_up);
+                DocumentLanguageToolChecker::add_empty_text(&mut request, len)?;
             }
             let text = std::str::from_utf8(
                 dt_bytes
@@ -138,19 +142,8 @@ impl DocumentLanguageToolCheck for DocumentLanguageToolChecker {
         }
         let length: i32 = i32::try_from(dt_bytes.len())?;
         if lastoffset < length - 1 {
-            // let mark_up = std::str::from_utf8(
-            //     dt_bytes
-            //         .get(Range::<usize> {
-            //             start: i32::try_into(lastoffset + 1)?,
-            //             end: usize::try_into(dt_bytes.len())?,
-            //         })
-            //         .expect("Unable to get value"),
-            // )?;
-            // info!("mark_up: {}", mark_up);
-            // request.add_markup(mark_up);
             let len = (dt_bytes.len() - lastoffset as usize - 1) as usize;
-            let mark_up = std::str::from_utf8(&PADDING.as_slice()[0..len])?;
-            request.add_text(mark_up);
+            DocumentLanguageToolChecker::add_empty_text(&mut request, len)?;
         }
         info!("Begin language server request");
         let result = request.execute_request().await?;
@@ -227,21 +220,6 @@ impl From<&crate::languagetool::LanguageToolResultListItem>
     fn from(value: &crate::languagetool::LanguageToolResultListItem) -> Self {
         Self {
             value: value.value.to_string(),
-        }
-    }
-}
-
-impl From<&DocumentLanguageToolCheckChunkResultCodeAction> for CodeAction {
-    fn from(value: &DocumentLanguageToolCheckChunkResultCodeAction) -> Self {
-        Self {
-            title: format!("Replace with \"{}\"", value.value),
-            kind: Some(lsp_types::CodeActionKind::QUICKFIX),
-            diagnostics: None,
-            edit: None, // TODO Some stuff to do...
-            command: None,
-            is_preferred: None,
-            disabled: None,
-            data: None,
         }
     }
 }

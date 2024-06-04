@@ -38,7 +38,6 @@ pub(crate) fn get_language(
         if lib_path_buf.exists() {
             let library = unsafe { Library::new(&lib_path_buf) }
                 .with_context(|| format!("Error opening dynamic library {:?}", lib_path_buf))?;
-            // let language_fn_name = format!("tree_sitter_{}", language_name.replace('-', "_"));
             let language = unsafe {
                 let language_fn: Symbol<unsafe extern "C" fn() -> Language> = library
                     .get(language_fn_name.as_bytes())
@@ -295,29 +294,4 @@ fn main() {file:///home/gaz/devel/ltlsp/test.ltlsp
             // info!("{:?}", i);
         }
     }
-
-    // #[test]
-    // #[ignore]
-    // fn test_markdown_identify_text() {
-    //     let _ = crate::test_utils::setup_tracing();
-    //     let mut parser = Parser::new();
-    //     parser
-    //         .set_language(tree_sitter_md::language())
-    //         .expect("Error loading Rust grammar");
-    //     let source_code = r###"""# Heading
-    //     Some text with a [https://github.com/](Github)
-    //     """###;
-    //     let tree = parser.parse(source_code, None).unwrap();
-    //     let root_node = tree.root_node();
-
-    //     println!("{:?}", root_node);
-    //     println!("{:?}", root_node.to_sexp());
-    //     let mut cursor = root_node.walk();
-    //     for i in root_node.children(&mut cursor) {
-    //         println!("{:?}", i);
-    //     }
-    //     assert_eq!(root_node.kind(), "document");
-    //     assert_eq!(root_node.start_position().column, 0);
-    //     assert_eq!(root_node.end_position().column, 10);
-    // }
 }
