@@ -1,0 +1,72 @@
+[language-server.ltex]
+command = "ltex-ls"
+
+[language-server.ltex.config]
+ltex.language = "en-AU"
+ltex.enabled = true
+
+[[language]]
+name = "text"
+file-types = ["eml", "md", "txt"]
+scope = "source.markdown"
+roots = []
+language-servers = [ "ltex" ]
+
+[language-server.ltlsp]
+command = "/home/gaz/devel/ltlsp/target/debug/ltlsp"
+
+[[language]]
+name = "ltlsp"
+injection-regex = "ltlsp"
+file-types = [ "ltlsp" ]
+scope = "source.ltlsp"
+roots = []
+language-servers = [ "ltlsp" ]
+
+[[language]]
+name = "c-sharp"
+scope = "source.csharp"
+injection-regex = "c-?sharp"
+file-types = ["cs", "csx", "cake"]
+roots = ["sln", "csproj"]
+comment-token = "//"
+block-comment-tokens = { start = "/*", end = "*/" }
+indent = { tab-width = 4, unit = "\t" }
+language-servers = [ "omnisharp", "ltlsp" ]
+
+
+[[language]]
+name = "rust"
+scope = "source.rust"
+injection-regex = "rust"
+file-types = ["rs"]
+roots = ["Cargo.toml", "Cargo.lock"]
+shebangs = ["rust-script", "cargo"]
+auto-format = true
+comment-tokens = ["//", "///", "//!"]
+block-comment-tokens = [
+  { start = "/*", end = "*/" },
+  { start = "/**", end = "*/" },
+  { start = "/*!", end = "*/" },
+]
+language-servers = [ "rust-analyzer", "ltlsp" ]
+# language-servers = [ "rust-analyzer" ]
+indent = { tab-width = 4, unit = "    " }
+persistent-diagnostic-sources = ["rustc", "clippy"]
+
+[[language]]
+name = "go"
+scope = "source.go"
+injection-regex = "go"
+file-types = ["go"]
+roots = ["go.work", "go.mod"]
+auto-format = true
+comment-token = "//"
+block-comment-tokens = { start = "/*", end = "*/" }
+language-servers = [ "gopls", "golangci-lint-lsp", "ltlsp" ]
+# TODO: gopls needs utf-8 offsets?
+indent = { tab-width = 4, unit = "\t" }
+
+[[language]]
+name = "git-commit"
+language-servers = [ "ltlsp" ]

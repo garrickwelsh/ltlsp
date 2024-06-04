@@ -1,0 +1,41 @@
+
+#theme = "dracula"
+#theme = "gruvbox"
+#theme = "pop-dark"
+theme = "dark_plus"
+# theme = "catppuccin_frappe"
+#theme = "catppuccin_latte"
+
+[keys.normal]
+"space" = { "space" = ":buffer-previous", "i" = ":toggle-option lsp.display-inlay-hints", "W" = ":toggle-option soft-wrap.enable" }
+
+[editor]
+line-number = "relative"
+mouse = false
+middle-click-paste = true
+cursorline = true
+color-modes = true
+bufferline = "always"
+
+[editor.indent-guides]
+render = true
+character = "⸽"
+skip-levels = 0
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "version-control" ]
+center = []
+right = ["diagnostics", "workspace-diagnostics", "selections", "position", "file-encoding", "file-line-ending"]
+separator = "|"
+
+[editor.whitespace]
+render = "all"
+
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.lsp]
+display-messages = true
