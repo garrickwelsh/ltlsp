@@ -38,18 +38,18 @@ mod test_utils;
 async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Result<()> {
     let _params: InitializeParams = serde_json::from_value(params).unwrap();
     let mut document_checker = DocumentLanguageToolChecker::new().await;
-    info!("starting example main loop");
+    info!("Starting main loop.");
     for msg in &connection.receiver {
-        info!("got msg: {msg:?}");
+        info!("Got msg: {msg:?}.");
         match msg {
             Message::Request(req) => {
                 if connection.handle_shutdown(&req)? {
                     return Ok(());
                 }
-                info!("got request: {req:?}");
+                info!("Got request: {req:?}.");
 
                 let serde_json::Value::Object(map) = req.params.clone() else {
-                    return anyhow::Result::Err(anyhow::anyhow!("Unable to find map"));
+                    return anyhow::Result::Err(anyhow::anyhow!("Unable to find map."));
                 };
 
                 match cast::<CodeActionRequest>(req) {
@@ -57,13 +57,13 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                         info!("{map:?}");
                         let diagnostics = map
                             .get("context")
-                            .context("Context for code action doesn't exist as expected. ")?
+                            .context("Context for code action doesn't exist as expected.")?
                             .as_object()
-                            .context("context was not an object")?
+                            .context("Context was not an object.")?
                             .get("diagnostics")
-                            .context("diagnostics were unable to be found for code actions")?
+                            .context("Diagnostics were unable to be found for code actions.")?
                             .as_array()
-                            .context("diagnostics were not an array")?;
+                            .context("Diagnostics were not an array.")?;
                         for i in diagnostics {
                             let Some(diagnostic) = i
                                 .as_object()
@@ -203,7 +203,7 @@ async fn process_document(
     info!("Running document checker.");
     let uri = document_map["uri"]
         .as_str()
-        .context("Expected document uri")?;
+        .context("Expected document URI")?;
     let language = match document_checker.get_language(uri) {
         Some(res) => res,
         None => document_map["languageId"]
