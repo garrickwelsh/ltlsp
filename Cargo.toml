@@ -30,6 +30,9 @@ tracing-subscriber = "0.3"
 toml = "0.8"
 etcetera = "0.8"
 
+# Spell checking library
+zspell = "0.5.5"
+
 [build-dependencies]
 lsp-types = "=0.95"
 ctrlc = "3.4.1"
