@@ -6,8 +6,10 @@ RUN pacman -Syu --noconfirm
 
 RUN pacman -S --noconfirm languagetool
 
-CMD ["/usr/bin/languagetool", "--http"]
-
 EXPOSE 8081
+
+ENTRYPOINT [ "/usr/bin/languagetool" ]
+CMD [ "--http" ]
+
 
 

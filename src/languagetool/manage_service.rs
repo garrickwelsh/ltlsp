@@ -161,6 +161,7 @@ impl<'a> LanguageToolRunnerLocal {
                 .args(&[
                     "run",
                     "--name=lt",
+                    "--stop-signal=SIGKILL",
                     "ghcr.io/garrickwelsh/languagetool:latest",
                 ])
                 .kill_on_drop(false)
