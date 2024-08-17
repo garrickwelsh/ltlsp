@@ -162,6 +162,8 @@ impl<'a> LanguageToolRunnerLocal {
                     "run",
                     "--name=lt",
                     "--stop-signal=SIGKILL",
+                    "-p",
+                    "8081:8081",
                     "ghcr.io/garrickwelsh/languagetool:latest",
                 ])
                 .kill_on_drop(false)
