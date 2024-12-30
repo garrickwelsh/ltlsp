@@ -1,11 +1,12 @@
 {
-  "build": { "dockerfile": "Dockerfile" },
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/docker-from-docker": {
-      "moby": true
-    },
-  },
+  "image" : "ghcr.io/garrickwelsh/rust-devcontainer:latest",
+  // "build": { "dockerfile": "Dockerfile" },
+  // "features": {
+    // "ghcr.io/devcontainers/features/git:1": {},
+    // "ghcr.io/devcontainers/features/docker-from-docker": {
+    //   "moby": true
+    // },
+  // },
   "remoteEnv": {
     "PODMAN_USERNS": "keep-id"
   },
@@ -22,12 +23,6 @@
         "ms-dotnettools.vscodeintellicode-csharp",
         "mutantdino.resourcemonitor",
         "tomoyukim.vscode-mermaid-editor"
-        // "ms-azuretools.vscode-bicep",
-        // "ms-azure-devops.azure-pipelines",
-        // "ms-dotnettools.csdevkit",
-        // "ms-dotnettools.csharp",
-        // "ms-mssql.mssql",
-        // "ms-mssql.sql-database-projects-vscode",
       ],
     }
   },
