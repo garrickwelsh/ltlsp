@@ -76,7 +76,7 @@ async fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow:
                                     )
                                 })
                             else {
-                                info!("Did not much diagnostic ignore.");
+                                info!("Did not match diagnostic ignore.");
                                 let resp = Response {
                                     id: _id.clone(),
                                     result: Some(serde_json::to_value(

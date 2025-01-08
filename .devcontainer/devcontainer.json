@@ -1,12 +1,5 @@
 {
-  "image" : "ghcr.io/garrickwelsh/rust-devcontainer:latest",
-  // "build": { "dockerfile": "Dockerfile" },
-  // "features": {
-    // "ghcr.io/devcontainers/features/git:1": {},
-    // "ghcr.io/devcontainers/features/docker-from-docker": {
-    //   "moby": true
-    // },
-  // },
+  "image" : "ghcr.io/garrickwelsh/devcontainer-rust:latest",
   "remoteEnv": {
     "PODMAN_USERNS": "keep-id"
   },
