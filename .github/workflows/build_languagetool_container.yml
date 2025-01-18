@@ -2,7 +2,7 @@ name: Build and Push LanguageTool Image
 on:
   workflow_dispatch:
   schedule:
-    - cron: '40 16 1 * *'  # 16:40 UTC everyday
+    # - cron: '40 16 1 * *'  # 16:40 UTC everyday
   merge_group:
   # pull_request:
   #   branches:
